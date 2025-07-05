@@ -23,8 +23,8 @@ class UserAnalytics(DatabaseMixin, db.Model):
     last_activity = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
     # Périodes d'activité (pour détecter les patterns)
-    peak_hours = db.Column(db.String(255), nullable=True)  # ex: "8-9,17-18"
-    preferred_days = db.Column(db.String(255), nullable=True)  # ex: "1,2,3,4,5" (lun-ven)
+    peak_hours = db.Column(db.String(250), nullable=True)  # ex: "8-9,17-18"
+    preferred_days = db.Column(db.String(250), nullable=True)  # ex: "1,2,3,4,5" (lun-ven)
     
     def __init__(self, user_id):
         self.user_id = user_id
@@ -188,6 +188,7 @@ class UserAnalytics(DatabaseMixin, db.Model):
             'total_routes_searched': self.total_routes_searched,
             'total_time_saved_minutes': self.total_time_saved_minutes,
             'total_distance_km': float(self.total_distance_km),
+            'weekly_stats': self.get_weekly_stats(),
             'most_used_origin': self.most_used_origin,
             'most_used_destination': self.most_used_destination,
             'average_optimization_score': float(self.average_optimization_score),

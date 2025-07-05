@@ -274,7 +274,7 @@
                                 {{ route.destination_address|truncate(30) }}
                             </div>
                             <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                                {{ route.created_at }}
+                                {{ route.created_at|time_ago }}
                             </div>
                         </button>
                         {% endfor %}

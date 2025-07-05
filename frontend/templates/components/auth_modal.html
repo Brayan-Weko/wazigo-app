@@ -101,7 +101,9 @@
                 client_id: window.APP_CONFIG.googleClientId,
                 callback: handleGoogleCallback,
                 auto_select: false,
-                cancel_on_tap_outside: false
+                cancel_on_tap_outside: false,
+                //ux_mode: 'redirect',
+                redirect_uri: window.location.origin + '/auth/callback'
             });
 
             google.accounts.id.renderButton(

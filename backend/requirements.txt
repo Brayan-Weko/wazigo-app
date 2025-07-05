@@ -4,6 +4,12 @@ Flask-SQLAlchemy==3.0.5
 Flask-Session==0.5.0
 Werkzeug==2.3.7
 
+# Framework Desktop
+pywebview>=4.2.2
+
+# Pour la conversion d'images (JPG vers ICO)
+Pillow==10.1.0
+
 # Base de données
 PyMySQL==1.1.0
 SQLAlchemy==2.0.23

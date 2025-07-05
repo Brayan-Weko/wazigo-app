@@ -9,7 +9,7 @@ class RouteHistory(DatabaseMixin, db.Model):
     
     # Relations
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    session_id = db.Column(db.String(255), nullable=False, index=True)
+    session_id = db.Column(db.String(250), nullable=False, index=True)
     
     # Points de départ et d'arrivée
     origin_address = db.Column(db.Text, nullable=False)

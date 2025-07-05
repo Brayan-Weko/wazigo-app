@@ -6,7 +6,7 @@ class GuestSession(DatabaseMixin, db.Model):
     
     __tablename__ = 'guest_sessions'
     
-    id = db.Column(db.String(255), primary_key=True)  # UUID
+    id = db.Column(db.String(250), primary_key=True)  # UUID
     ip_address = db.Column(db.String(45), nullable=False)
     user_agent = db.Column(db.Text, nullable=True)
     preferences = db.Column(JSONColumn, nullable=True)
@@ -35,7 +35,7 @@ class Feedback(DatabaseMixin, db.Model):
     
     # Relations
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    session_id = db.Column(db.String(255), nullable=True)
+    session_id = db.Column(db.String(250), nullable=True)
     route_id = db.Column(db.Integer, db.ForeignKey('route_history.id'), nullable=True)
     
     # Contenu du feedback

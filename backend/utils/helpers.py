@@ -430,40 +430,6 @@ def truncate_text(text: str, max_length: int, suffix: str = "...") -> str:
     
     return text[:max_length - len(suffix)] + suffix
 
-def time_ago(dt: datetime) -> str:
-    """
-    Args:
-        dt: The datetime to convert
-        
-    Returns:
-        str: The relative time string
-    """
-    now = datetime.now()
-    diff = now - dt
-    
-    seconds = diff.total_seconds()
-    minutes = seconds / 60
-    hours = minutes / 60
-    days = hours / 24
-    weeks = days / 7
-    months = days / 30
-    years = days / 365
-    
-    if seconds < 60:
-        return "à l'instant"
-    elif minutes < 60:
-        return f"il y a {int(minutes)} minute{'s' if int(minutes) > 1 else ''}"
-    elif hours < 24:
-        return f"il y a {int(hours)} heure{'s' if int(hours) > 1 else ''}"
-    elif days < 7:
-        return f"il y a {int(days)} jour{'s' if int(days) > 1 else ''}"
-    elif weeks < 4:
-        return f"il y a {int(weeks)} semaine{'s' if int(weeks) > 1 else ''}"
-    elif months < 12:
-        return f"il y a {int(months)} mois"
-    else:
-        return f"il y a {int(years)} an{'s' if int(years) > 1 else ''}"
-
 def extract_numbers(text: str) -> List[float]:
     """Extraire tous les nombres d'un texte"""
     pattern = r'-?\d+\.?\d*'

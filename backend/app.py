@@ -6,6 +6,7 @@ from datetime import datetime
 import uuid
 
 # Configuration
+from .utils import configure_utils
 from .config import config
 from .extensions import db, sess
 
@@ -34,6 +35,9 @@ def create_app(config_name=None):
     # Créer les dossiers nécessaires
     os.makedirs('logs', exist_ok=True)
     os.makedirs('sessions', exist_ok=True)
+    
+    # Configurer les utilitaires
+    configure_utils(app)
     
     # Enregistrer les blueprints
     register_blueprints(app)

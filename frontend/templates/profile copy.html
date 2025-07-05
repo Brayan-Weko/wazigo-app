@@ -25,15 +25,7 @@
                         <h1 class="text-3xl font-bold">{{ profile_data.user.name }}</h1>
                         <p class="text-primary-100 text-lg">{{ profile_data.user.email|mask_email }}</p>
                         <p class="text-primary-200 text-sm">
-                            Membre depuis {% if profile_data.user.created_at %}
-                {% if profile_data.user.created_at is string %}
-                    {{ profile_data.user.created_at }}
-                {% else %}
-                    {{ profile_data.user.created_at.strftime('%B %Y') }}
-                {% endif %}
-              {% else %}
-                récemment
-              {% endif %}
+                            Membre depuis {{ profile_data.user.created_at.strftime('%B %Y') if profile_data.user.created_at else 'récemment' }}
                         </p>
                     </div>
                 </div>

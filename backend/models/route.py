@@ -10,7 +10,7 @@ class SavedRoute(DatabaseMixin, db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     
     # Informations de base
-    name = db.Column(db.String(255), nullable=False)
+    name = db.Column(db.String(250), nullable=False)
     description = db.Column(db.Text, nullable=True)
     is_favorite = db.Column(db.Boolean, default=False, nullable=False)
     

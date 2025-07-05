@@ -38,7 +38,8 @@ class GoogleAuthService:
     def _get_redirect_uri(self) -> str:
         """Construire l'URI de redirection"""
         base_url = current_app.config.get('APP_URL', 'http://localhost:5000')
-        return f"{base_url}/auth/callback"
+        #return f"{base_url}/auth/callback"
+        return f"{current_app.config['APP_URL'].rstrip('/')}/auth/callback"
     
     def get_authorization_url(self) -> str:
         """Générer l'URL d'autorisation Google"""

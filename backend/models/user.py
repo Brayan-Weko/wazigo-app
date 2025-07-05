@@ -9,9 +9,9 @@ class User(DatabaseMixin, db.Model):
     __tablename__ = 'users'
     
     # Colonnes principales
-    google_id = db.Column(db.String(255), unique=True, nullable=True, index=True)
-    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    name = db.Column(db.String(255), nullable=False)
+    google_id = db.Column(db.String(250), unique=True, nullable=True, index=True)
+    email = db.Column(db.String(250), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(250), nullable=False)
     avatar_url = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
