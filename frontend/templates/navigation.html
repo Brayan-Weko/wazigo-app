@@ -1,0 +1,755 @@
+{% extends "base.html" %}
+
+{% block title %}Navigation - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-900 text-white relative overflow-hidden">
+    <!-- Navigation Header -->
+    <div class="absolute top-0 left-0 right-0 z-30 bg-gray-900/90 backdrop-blur-sm border-b border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <button onclick="exitNavigation()" 
+                            class="text-gray-400 hover:text-white transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                    <div>
+                        <h1 class="text-lg font-semibold">Navigation active</h1>
+                        <p class="text-sm text-gray-400" id="route-summary">
+                            Chargement de l'itinéraire...
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    <!-- ETA -->
+                    <div class="text-right">
+                        <div class="text-xl font-bold text-green-400" id="eta-time">--:--</div>
+                        <div class="text-xs text-gray-400">Arrivée prévue</div>
+                    </div>
+                    
+                    <!-- Distance remaining -->
+                    <div class="text-right">
+                        <div class="text-lg font-semibold" id="remaining-distance">-- km</div>
+                        <div class="text-xs text-gray-400">Restant</div>
+                    </div>
+                    
+                    <!-- Settings -->
+                    <button onclick="toggleNavigationSettings()" 
+                            class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Navigation View -->
+    <div class="pt-20 h-screen flex flex-col">
+        <!-- Map Container -->
+        <div class="flex-1 relative">
+            <div id="navigation-map" class="w-full h-full bg-gray-800">
+                <!-- Map will be rendered here -->
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="text-center">
+                        <div class="loading-spinner mx-auto mb-4"></div>
+                        <p class="text-gray-400">Initialisation de la navigation...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Map Controls -->
+            <div class="absolute top-4 right-4 flex flex-col space-y-2 z-20">
+                <button onclick="toggleMapMode()" 
+                        id="map-mode-btn"
+                        class="w-12 h-12 bg-gray-800/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-white hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-map"></i>
+                </button>
+                <button onclick="centerOnLocation()" 
+                        class="w-12 h-12 bg-gray-800/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-white hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-crosshairs"></i>
+                </button>
+                <button onclick="toggleFullscreen()" 
+                        class="w-12 h-12 bg-gray-800/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-white hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+
+            <!-- Current Position Indicator -->
+            <div class="absolute bottom-20 left-4 right-4 z-20">
+                <div class="bg-gray-800/90 backdrop-blur-sm rounded-xl p-4" id="current-instruction">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                            <i class="fas fa-arrow-up text-xl" id="instruction-icon"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-lg font-semibold" id="instruction-text">
+                                Initialisation du GPS...
+                            </div>
+                            <div class="text-sm text-gray-400" id="instruction-distance">
+                                Recherche de votre position
+                            </div>
+                        </div>
+                        <div class="text-right ml-4">
+                            <div class="text-2xl font-bold text-blue-400" id="instruction-countdown">
+                                --
+                            </div>
+                            <div class="text-xs text-gray-400">mètres</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Speed and Status -->
+            <div class="absolute bottom-4 left-4 z-20">
+                <div class="bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 flex items-center space-x-4">
+                    <div class="text-center">
+                        <div class="text-xl font-bold text-green-400" id="current-speed">0</div>
+                        <div class="text-xs text-gray-400">km/h</div>
+                    </div>
+                    <div class="w-px h-8 bg-gray-600"></div>
+                    <div class="text-center">
+                        <div class="text-sm font-medium" id="speed-limit">--</div>
+                        <div class="text-xs text-gray-400">limite</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergency Actions -->
+            <div class="absolute bottom-4 right-4 z-20">
+                <div class="flex space-x-2">
+                    <button onclick="reportIncident()" 
+                            class="w-12 h-12 bg-red-600/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-white hover:bg-red-500 transition-colors">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </button>
+                    <button onclick="callEmergency()" 
+                            class="w-12 h-12 bg-red-800/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-white hover:bg-red-700 transition-colors">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Panel (collapsible) -->
+        <div id="bottom-panel" class="bg-gray-800 border-t border-gray-700 transition-transform duration-300">
+            <div class="p-4">
+                <!-- Panel Toggle -->
+                <div class="flex justify-center mb-4">
+                    <button onclick="toggleBottomPanel()" 
+                            class="w-12 h-1 bg-gray-600 rounded-full hover:bg-gray-500 transition-colors"></button>
+                </div>
+
+                <!-- Route Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div class="bg-gray-700 rounded-lg p-3 text-center">
+                        <div class="text-lg font-semibold text-blue-400" id="total-time">--</div>
+                        <div class="text-sm text-gray-400">Temps total</div>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3 text-center">
+                        <div class="text-lg font-semibold text-green-400" id="total-distance">--</div>
+                        <div class="text-sm text-gray-400">Distance</div>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3 text-center">
+                        <div class="text-lg font-semibold text-yellow-400" id="traffic-status">--</div>
+                        <div class="text-sm text-gray-400">Trafic</div>
+                    </div>
+                </div>
+
+                <!-- Upcoming Instructions -->
+                <div>
+                    <h3 class="text-sm font-medium text-gray-400 mb-3">Prochaines instructions</h3>
+                    <div id="upcoming-instructions" class="space-y-2">
+                        <!-- Instructions will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Alternative Routes -->
+                <div class="mt-4" id="alternative-routes-section" style="display: none;">
+                    <h3 class="text-sm font-medium text-gray-400 mb-3">Itinéraires alternatifs</h3>
+                    <div id="alternative-routes" class="space-y-2">
+                        <!-- Alternative routes will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Settings Modal -->
+    <div id="navigation-settings-modal" class="modal-overlay hidden">
+        <div class="modal-content bg-gray-800 text-white">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-semibold">Paramètres de navigation</h3>
+                    <button onclick="toggleNavigationSettings()" 
+                            class="text-gray-400 hover:text-white transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- Voice Settings -->
+                    <div>
+                        <h4 class="text-lg font-medium mb-3">Instructions vocales</h4>
+                        <div class="space-y-3">
+                            <label class="flex items-center">
+                                <input type="checkbox" id="voice-enabled" class="checkbox" checked>
+                                <span class="ml-2">Activer les instructions vocales</span>
+                            </label>
+                            <div class="flex items-center space-x-3">
+                                <label class="text-sm">Volume:</label>
+                                <input type="range" id="voice-volume" min="0" max="100" value="50" 
+                                       class="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                                <span class="text-sm w-8" id="volume-display">50%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Display Settings -->
+                    <div>
+                        <h4 class="text-lg font-medium mb-3">Affichage</h4>
+                        <div class="space-y-3">
+                            <label class="flex items-center">
+                                <input type="checkbox" id="auto-night-mode" class="checkbox" checked>
+                                <span class="ml-2">Mode nuit automatique</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="show-traffic" class="checkbox" checked>
+                                <span class="ml-2">Afficher le trafic</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="keep-screen-on" class="checkbox" checked>
+                                <span class="ml-2">Maintenir l'écran allumé</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Route Preferences -->
+                    <div>
+                        <h4 class="text-lg font-medium mb-3">Préférences de route</h4>
+                        <div class="space-y-3">
+                            <label class="flex items-center">
+                                <input type="checkbox" id="auto-reroute" class="checkbox" checked>
+                                <span class="ml-2">Recalcul automatique</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="avoid-traffic" class="checkbox">
+                                <span class="ml-2">Éviter automatiquement le trafic</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex space-x-3 pt-6 border-t border-gray-700 mt-6">
+                    <button onclick="saveNavigationSettings()" class="btn-primary flex-1">
+                        Sauvegarder
+                    </button>
+                    <button onclick="toggleNavigationSettings()" class="btn-secondary">
+                        Annuler
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Incident Report Modal -->
+    <div id="incident-modal" class="modal-overlay hidden">
+        <div class="modal-content bg-gray-800 text-white">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-semibold">Signaler un incident</h3>
+                    <button onclick="closeIncidentModal()" 
+                            class="text-gray-400 hover:text-white transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="reportIncidentType('accident')" 
+                            class="bg-red-600 hover:bg-red-500 rounded-lg p-4 text-center transition-colors">
+                        <i class="fas fa-car-crash text-2xl mb-2"></i>
+                        <div class="font-medium">Accident</div>
+                    </button>
+                    <button onclick="reportIncidentType('construction')" 
+                            class="bg-orange-600 hover:bg-orange-500 rounded-lg p-4 text-center transition-colors">
+                        <i class="fas fa-hard-hat text-2xl mb-2"></i>
+                        <div class="font-medium">Travaux</div>
+                    </button>
+                    <button onclick="reportIncidentType('closure')" 
+                            class="bg-gray-600 hover:bg-gray-500 rounded-lg p-4 text-center transition-colors">
+                        <i class="fas fa-road text-2xl mb-2"></i>
+                        <div class="font-medium">Route fermée</div>
+                    </button>
+                    <button onclick="reportIncidentType('hazard')" 
+                            class="bg-yellow-600 hover:bg-yellow-500 rounded-lg p-4 text-center transition-colors">
+                        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                        <div class="font-medium">Danger</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/navigation.js') }}"></script>
+<script>
+    let navigationState = {
+        isActive: false,
+        currentPosition: null,
+        currentRoute: null,
+        instructions: [],
+        currentInstructionIndex: 0,
+        settings: {
+            voiceEnabled: true,
+            voiceVolume: 50,
+            autoNightMode: true,
+            showTraffic: true,
+            keepScreenOn: true,
+            autoReroute: true,
+            avoidTraffic: false
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeNavigation();
+    });
+
+    async function initializeNavigation() {
+        try {
+            // Get route data from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const routeId = urlParams.get('route_id');
+            
+            if (!routeId) {
+                showAlert('Aucun itinéraire sélectionné', 'error');
+                exitNavigation();
+                return;
+            }
+
+            // Load route data
+            const routeData = await loadRouteData(routeId);
+            if (!routeData) {
+                showAlert('Impossible de charger l\'itinéraire', 'error');
+                exitNavigation();
+                return;
+            }
+
+            navigationState.currentRoute = routeData;
+            
+            // Initialize map
+            await initializeNavigationMap();
+            
+            // Start GPS tracking
+            startGPSTracking();
+            
+            // Initialize voice synthesis
+            initializeVoice();
+            
+            // Update UI
+            updateNavigationUI();
+            
+            navigationState.isActive = true;
+            
+            // Prevent screen sleep
+            if (navigationState.settings.keepScreenOn) {
+                requestWakeLock();
+            }
+            
+            showAlert('Navigation démarrée', 'success');
+            
+        } catch (error) {
+            console.error('Navigation initialization error:', error);
+            showAlert('Erreur lors de l\'initialisation de la navigation', 'error');
+            exitNavigation();
+        }
+    }
+
+    async function loadRouteData(routeId) {
+        try {
+            const response = await apiRequest(`/api/route/${routeId}/start`, {
+                method: 'POST'
+            });
+            
+            return response.success ? response.route : null;
+        } catch (error) {
+            console.error('Error loading route data:', error);
+            return null;
+        }
+    }
+
+    function startGPSTracking() {
+        if (!navigator.geolocation) {
+            showAlert('GPS non disponible', 'error');
+            return;
+        }
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 1000
+        };
+
+        navigator.geolocation.watchPosition(
+            updatePosition,
+            handleGPSError,
+            options
+        );
+    }
+
+    function updatePosition(position) {
+        const { latitude, longitude, speed, heading } = position.coords;
+        
+        navigationState.currentPosition = {
+            lat: latitude,
+            lng: longitude,
+            speed: speed ? Math.round(speed * 3.6) : 0, // Convert m/s to km/h
+            heading: heading || 0,
+            timestamp: Date.now()
+        };
+
+        // Update speed display
+        document.getElementById('current-speed').textContent = navigationState.currentPosition.speed;
+
+        // Update map position
+        updateMapPosition();
+
+        // Check for instruction updates
+        checkCurrentInstruction();
+
+        // Update ETA
+        updateETA();
+    }
+
+    function handleGPSError(error) {
+        let message = 'Erreur GPS';
+        switch(error.code) {
+            case error.PERMISSION_DENIED:
+                message = 'Accès GPS refusé';
+                break;
+            case error.POSITION_UNAVAILABLE:
+                message = 'Position GPS indisponible';
+                break;
+            case error.TIMEOUT:
+                message = 'Délai GPS dépassé';
+                break;
+        }
+        showAlert(message, 'error');
+    }
+
+    function updateNavigationUI() {
+        const route = navigationState.currentRoute;
+        if (!route) return;
+
+        // Update route summary
+        document.getElementById('route-summary').textContent = 
+            `${route.summary.origin.address} → ${route.summary.destination.address}`;
+
+        // Update totals
+        document.getElementById('total-time').textContent = formatDuration(route.summary.duration);
+        document.getElementById('total-distance').textContent = formatDistance(route.summary.length);
+        document.getElementById('traffic-status').textContent = route.traffic_analysis?.description || 'Normal';
+
+        // Update instructions
+        if (route.selected_route_data?.instructions) {
+            navigationState.instructions = route.selected_route_data.instructions;
+            updateInstructionDisplay();
+        }
+    }
+
+    function updateInstructionDisplay() {
+        const instructions = navigationState.instructions;
+        const currentIndex = navigationState.currentInstructionIndex;
+        
+        if (instructions && instructions[currentIndex]) {
+            const instruction = instructions[currentIndex];
+            
+            document.getElementById('instruction-text').textContent = instruction.text || 'Continuez tout droit';
+            document.getElementById('instruction-distance').textContent = formatDistance(instruction.distance || 0);
+            document.getElementById('instruction-icon').className = getInstructionIcon(instruction.type);
+            
+            // Update upcoming instructions
+            updateUpcomingInstructions();
+        }
+    }
+
+    function updateUpcomingInstructions() {
+        const container = document.getElementById('upcoming-instructions');
+        const instructions = navigationState.instructions;
+        const currentIndex = navigationState.currentInstructionIndex;
+        
+        container.innerHTML = '';
+        
+        for (let i = currentIndex + 1; i < Math.min(currentIndex + 4, instructions.length); i++) {
+            const instruction = instructions[i];
+            const div = document.createElement('div');
+            div.className = 'flex items-center p-2 bg-gray-700 rounded text-sm';
+            div.innerHTML = `
+                <i class="${getInstructionIcon(instruction.type)} mr-3 text-gray-400"></i>
+                <span class="flex-1">${instruction.text}</span>
+                <span class="text-gray-400">${formatDistance(instruction.distance || 0)}</span>
+            `;
+            container.appendChild(div);
+        }
+    }
+
+    function getInstructionIcon(type) {
+        const icons = {
+            'straight': 'fas fa-arrow-up',
+            'left': 'fas fa-arrow-left',
+            'right': 'fas fa-arrow-right',
+            'uturn': 'fas fa-undo',
+            'exit': 'fas fa-sign-out-alt',
+            'merge': 'fas fa-code-branch',
+            'roundabout': 'fas fa-circle-notch'
+        };
+        return icons[type] || 'fas fa-arrow-up';
+    }
+
+    function updateETA() {
+        if (!navigationState.currentRoute) return;
+        
+        const remainingTime = calculateRemainingTime();
+        if (remainingTime) {
+            const eta = new Date(Date.now() + remainingTime * 1000);
+            document.getElementById('eta-time').textContent = 
+                eta.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        }
+    }
+
+    function calculateRemainingTime() {
+        // Simplified calculation - in real implementation, this would be more complex
+        const route = navigationState.currentRoute;
+        if (!route) return null;
+        
+        const totalTime = route.summary.duration;
+        const progress = navigationState.currentInstructionIndex / navigationState.instructions.length;
+        return Math.round(totalTime * (1 - progress));
+    }
+
+    function toggleBottomPanel() {
+        const panel = document.getElementById('bottom-panel');
+        panel.classList.toggle('translate-y-full');
+    }
+
+    function toggleNavigationSettings() {
+        const modal = document.getElementById('navigation-settings-modal');
+        modal.classList.toggle('hidden');
+    }
+
+    function saveNavigationSettings() {
+        // Save settings from form
+        navigationState.settings.voiceEnabled = document.getElementById('voice-enabled').checked;
+        navigationState.settings.voiceVolume = document.getElementById('voice-volume').value;
+        navigationState.settings.autoNightMode = document.getElementById('auto-night-mode').checked;
+        navigationState.settings.showTraffic = document.getElementById('show-traffic').checked;
+        navigationState.settings.keepScreenOn = document.getElementById('keep-screen-on').checked;
+        navigationState.settings.autoReroute = document.getElementById('auto-reroute').checked;
+        navigationState.settings.avoidTraffic = document.getElementById('avoid-traffic').checked;
+
+        // Apply settings
+        applyNavigationSettings();
+        
+        toggleNavigationSettings();
+        showAlert('Paramètres sauvegardés', 'success');
+    }
+
+    function applyNavigationSettings() {
+        // Apply voice settings
+        if (window.speechSynthesis) {
+            speechSynthesis.cancel();
+        }
+
+        // Apply screen settings
+        if (navigationState.settings.keepScreenOn) {
+            requestWakeLock();
+        } else {
+            releaseWakeLock();
+        }
+
+        // Apply map settings
+        if (navigationState.settings.showTraffic) {
+            // Enable traffic layer
+        } else {
+            // Disable traffic layer
+        }
+    }
+
+    function reportIncident() {
+        document.getElementById('incident-modal').classList.remove('hidden');
+    }
+
+    function closeIncidentModal() {
+        document.getElementById('incident-modal').classList.add('hidden');
+    }
+
+    async function reportIncidentType(type) {
+        try {
+            if (!navigationState.currentPosition) {
+                showAlert('Position GPS requise', 'error');
+                return;
+            }
+
+            const response = await apiRequest('/api/incidents/report', {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: type,
+                    lat: navigationState.currentPosition.lat,
+                    lng: navigationState.currentPosition.lng,
+                    timestamp: new Date().toISOString()
+                })
+            });
+
+            if (response.success) {
+                showAlert('Incident signalé', 'success');
+                closeIncidentModal();
+            }
+        } catch (error) {
+            showAlert('Erreur lors du signalement', 'error');
+        }
+    }
+
+    function callEmergency() {
+        if (confirm('Appeler les services d\'urgence ?')) {
+            window.open('tel:112');
+        }
+    }
+
+    function exitNavigation() {
+        if (navigationState.isActive) {
+            if (!confirm('Êtes-vous sûr de vouloir arrêter la navigation ?')) {
+                return;
+            }
+        }
+
+        // Stop GPS tracking
+        if (navigator.geolocation) {
+            navigator.geolocation.clearWatch();
+        }
+
+        // Release wake lock
+        releaseWakeLock();
+
+        // Mark route as completed
+        if (navigationState.currentRoute) {
+            completeNavigation();
+        }
+
+        // Return to results or search
+        window.history.back();
+    }
+
+    async function completeNavigation() {
+        try {
+            await apiRequest(`/api/route/${navigationState.currentRoute.id}/complete`, {
+                method: 'POST'
+            });
+        } catch (error) {
+            console.error('Error completing navigation:', error);
+        }
+    }
+
+    // Wake Lock API
+    let wakeLock = null;
+
+    async function requestWakeLock() {
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+            }
+        } catch (error) {
+            console.error('Wake lock error:', error);
+        }
+    }
+
+    function releaseWakeLock() {
+        if (wakeLock) {
+            wakeLock.release();
+            wakeLock = null;
+        }
+    }
+
+    // Voice synthesis
+    function initializeVoice() {
+        if (!('speechSynthesis' in window)) {
+            console.warn('Speech synthesis not supported');
+            return;
+        }
+
+        // Test voice
+        speakInstruction('Navigation démarrée');
+    }
+
+    function speakInstruction(text) {
+        if (!navigationState.settings.voiceEnabled || !('speechSynthesis' in window)) {
+            return;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.volume = navigationState.settings.voiceVolume / 100;
+        utterance.rate = 0.9;
+        utterance.lang = 'fr-FR';
+        
+        speechSynthesis.speak(utterance);
+    }
+
+    // Map functions (to be implemented in maps.js)
+    function initializeNavigationMap() {
+        // Implementation in maps.js
+        return Promise.resolve();
+    }
+
+    function updateMapPosition() {
+        // Implementation in maps.js
+    }
+
+    function checkCurrentInstruction() {
+        // Implementation in maps.js
+    }
+
+    function toggleMapMode() {
+        // Switch between 2D/3D, satellite/map views
+        showAlert('Mode carte changé', 'info');
+    }
+
+    function centerOnLocation() {
+        if (navigationState.currentPosition) {
+            // Center map on current position
+            showAlert('Carte centrée', 'info');
+        }
+    }
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
+
+    // Handle page visibility changes
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            // Page is hidden, continue navigation in background
+        } else {
+            // Page is visible, update UI
+            updateNavigationUI();
+        }
+    });
+
+    // Handle orientation changes
+    window.addEventListener('orientationchange', function() {
+        setTimeout(() => {
+            // Adjust map size after orientation change
+            updateMapPosition();
+        }, 500);
+    });
+
+    // Volume control
+    document.getElementById('voice-volume').addEventListener('input', function() {
+        document.getElementById('volume-display').textContent = this.value + '%';
+    });
+</script>
+{% endblock %}

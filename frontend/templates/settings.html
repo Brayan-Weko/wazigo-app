@@ -1,0 +1,673 @@
+{% extends "base.html" %}
+
+{% block title %}Paramètres - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                <i class="fas fa-cog text-primary-600 mr-3"></i>
+                Paramètres
+            </h1>
+            <p class="text-gray-600 dark:text-gray-300">
+                Configurez votre expérience {{ app_name }}
+            </p>
+        </div>
+
+        <div class="space-y-8">
+            <!-- Profile Section -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                    <i class="fas fa-user text-primary-600 mr-3"></i>
+                    Profil utilisateur
+                </h2>
+                
+                <div class="flex items-center space-x-6 mb-6">
+                    {% if user.avatar_url %}
+                        <img src="{{ user.avatar_url }}" 
+                             alt="{{ user.name }}" 
+                             class="w-20 h-20 rounded-full">
+                    {% else %}
+                        <div class="w-20 h-20 bg-primary-500 rounded-full flex items-center justify-center">
+                            <span class="text-white text-2xl font-medium">
+                                {{ user.name[0].upper() if user.name else 'U' }}
+                            </span>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="flex-1">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ user.name }}</h3>
+                        <p class="text-gray-600 dark:text-gray-300">{{ user.email|mask_email }}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            Membre depuis {{ user.created_at.strftime('%B %Y') if user.created_at else 'récemment' }}
+                        </p>
+                    </div>
+                    
+                    <button onclick="editProfile()" class="btn-secondary">
+                        <i class="fas fa-edit mr-2"></i>
+                        Modifier
+                    </button>
+                </div>
+            </div>
+
+            <!-- Route Preferences -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                    <i class="fas fa-route text-primary-600 mr-3"></i>
+                    Préférences d'itinéraire
+                </h2>
+                
+                <form id="route-preferences-form" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                Type d'itinéraire par défaut
+                            </label>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="radio" name="default_route_type" value="fastest" 
+                                           {{ 'checked' if (user.preferences.route_preferences.prefer_fastest if user.preferences and user.preferences.route_preferences else True) }}
+                                           class="radio">
+                                    <span class="ml-2 text-gray-700 dark:text-gray-300">Le plus rapide</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="default_route_type" value="shortest" 
+                                           class="radio">
+                                    <span class="ml-2 text-gray-700 dark:text-gray-300">Le plus court</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="default_route_type" value="balanced" 
+                                           class="radio">
+                                    <span class="ml-2 text-gray-700 dark:text-gray-300">Équilibré</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                Évitements par défaut
+                            </label>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="avoid_tolls" 
+                                           {{ 'checked' if (user.preferences.route_preferences.avoid_tolls if user.preferences and user.preferences.route_preferences else False) }}
+                                           class="checkbox">
+                                    <span class="ml-2 text-gray-700 dark:text-gray-300">Éviter les péages</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="avoid_highways" 
+                                           {{ 'checked' if (user.preferences.route_preferences.avoid_highways if user.preferences and user.preferences.route_preferences else False) }}
+                                           class="checkbox">
+                                    <span class="ml-2 text-gray-700 dark:text-gray-300">Éviter les autoroutes</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="avoid_ferries" 
+                                           {{ 'checked' if (user.preferences.route_preferences.avoid_ferries if user.preferences and user.preferences.route_preferences else False) }}
+                                           class="checkbox">
+                                    <span class="ml-2 text-gray-700 dark:text-gray-300">Éviter les ferries</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Notifications -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                    <i class="fas fa-bell text-primary-600 mr-3"></i>
+                    Notifications
+                </h2>
+                
+                <form id="notifications-form" class="space-y-4">
+                    <label class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-white">Alertes trafic</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Recevoir des notifications sur les conditions de trafic</div>
+                        </div>
+                        <input type="checkbox" name="traffic_alerts" 
+                               {{ 'checked' if (user.preferences.notifications.traffic_alerts if user.preferences and user.preferences.notifications else True) }}
+                               class="checkbox">
+                    </label>
+
+                    <label class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-white">Suggestions d'itinéraires</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Recommandations basées sur vos habitudes</div>
+                        </div>
+                        <input type="checkbox" name="route_suggestions" 
+                               {{ 'checked' if (user.preferences.notifications.route_suggestions if user.preferences and user.preferences.notifications else True) }}
+                               class="checkbox">
+                    </label>
+
+                    <label class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-white">Mises à jour par email</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Nouvelles fonctionnalités et améliorations</div>
+                        </div>
+                        <input type="checkbox" name="email_updates" 
+                               {{ 'checked' if (user.preferences.notifications.email_updates if user.preferences and user.preferences.notifications else False) }}
+                               class="checkbox">
+                    </label>
+                </form>
+            </div>
+
+            <!-- Display Settings -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                    <i class="fas fa-desktop text-primary-600 mr-3"></i>
+                    Affichage
+                </h2>
+                
+                <form id="display-form" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Unités de mesure
+                            </label>
+                            <select name="units" class="input-field">
+                                <option value="metric" {{ 'selected' if (user.preferences.display.units if user.preferences and user.preferences.display else 'metric') == 'metric' }}>
+                                    Métriques (km, m)
+                                </option>
+                                <option value="imperial" {{ 'selected' if (user.preferences.display.units if user.preferences and user.preferences.display else 'metric') == 'imperial' }}>
+                                    Impériales (mi, ft)
+                                </option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Langue
+                            </label>
+                            <select name="language" class="input-field">
+                                <option value="fr" {{ 'selected' if (user.preferences.display.language if user.preferences and user.preferences.display else 'fr') == 'fr' }}>
+                                    Français
+                                </option>
+                                <option value="en" {{ 'selected' if (user.preferences.display.language if user.preferences and user.preferences.display else 'fr') == 'en' }}>
+                                    English
+                                </option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Thème
+                            </label>
+                            <select name="theme" class="input-field">
+                                <option value="auto" {{ 'selected' if (user.preferences.display.theme if user.preferences and user.preferences.display else 'auto') == 'auto' }}>
+                                    Automatique
+                                </option>
+                                <option value="light" {{ 'selected' if (user.preferences.display.theme if user.preferences and user.preferences.display else 'auto') == 'light' }}>
+                                    Clair
+                                </option>
+                                <option value="dark" {{ 'selected' if (user.preferences.display.theme if user.preferences and user.preferences.display else 'auto') == 'dark' }}>
+                                    Sombre
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Saved Routes Management -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                    <i class="fas fa-star text-primary-600 mr-3"></i>
+                    Itinéraires sauvegardés
+                    <span class="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                        ({{ saved_routes|length }})
+                    </span>
+                </h2>
+                
+                {% if saved_routes %}
+                    <div class="space-y-3">
+                        {% for route in saved_routes %}
+                        <div class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <div class="flex-1">
+                                <div class="flex items-center">
+                                    <div class="font-medium text-gray-900 dark:text-white">{{ route.name }}</div>
+                                    {% if route.is_favorite %}
+                                        <i class="fas fa-star text-yellow-500 ml-2"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                    {{ route.origin_address|truncate(40) }} → {{ route.destination_address|truncate(40) }}
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Utilisé {{ route.usage_count }} fois • {{ route.created_at|time_ago }}
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2 ml-4">
+                                <button onclick="editSavedRoute({{ route.id }})" 
+                                        class="text-gray-400 hover:text-primary-600 transition-colors">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="deleteSavedRoute({{ route.id }})" 
+                                        class="text-gray-400 hover:text-red-600 transition-colors">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-star text-4xl mb-4"></i>
+                        <p>Aucun itinéraire sauvegardé</p>
+                        <p class="text-sm">Sauvegardez vos trajets fréquents pour un accès rapide</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Privacy Settings -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                    <i class="fas fa-shield-alt text-primary-600 mr-3"></i>
+                    Confidentialité et données
+                </h2>
+                
+                <form id="privacy-form" class="space-y-4">
+                    <label class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-white">Sauvegarder l'historique</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Conserver vos recherches pour les analytics</div>
+                        </div>
+                        <input type="checkbox" name="save_history" 
+                               {{ 'checked' if (user.preferences.privacy.save_history if user.preferences and user.preferences.privacy else True) }}
+                               class="checkbox">
+                    </label>
+
+                    <label class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-white">Partager les analytics</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Aider à améliorer le service (données anonymisées)</div>
+                        </div>
+                        <input type="checkbox" name="share_analytics" 
+                               {{ 'checked' if (user.preferences.privacy.share_analytics if user.preferences and user.preferences.privacy else False) }}
+                               class="checkbox">
+                    </label>
+                </form>
+
+                <!-- Data Export/Delete -->
+                <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Gestion des données</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="exportUserData()" class="btn-secondary">
+                            <i class="fas fa-download mr-2"></i>
+                            Exporter mes données
+                        </button>
+                        <button onclick="deleteAccount()" class="btn-outline text-red-600 border-red-600 hover:bg-red-600 hover:text-white">
+                            <i class="fas fa-trash mr-2"></i>
+                            Supprimer mon compte
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="flex justify-end space-x-4">
+                <button onclick="resetSettings()" class="btn-secondary">
+                    <i class="fas fa-undo mr-2"></i>
+                    Réinitialiser
+                </button>
+                <button onclick="saveAllSettings()" class="btn-primary">
+                    <i class="fas fa-save mr-2"></i>
+                    Sauvegarder tous les paramètres
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div id="edit-profile-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+                    Modifier le profil
+                </h3>
+                <button onclick="closeEditProfile()" 
+                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="edit-profile-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Nom d'affichage
+                    </label>
+                    <input type="text" 
+                           name="name" 
+                           value="{{ user.name }}"
+                           class="input-field"
+                           required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Email
+                    </label>
+                    <input type="email" 
+                           value="{{ user.email }}"
+                           class="input-field bg-gray-100 dark:bg-gray-700" 
+                           disabled>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        L'email ne peut pas être modifié
+                    </p>
+                </div>
+
+                <div class="flex space-x-3 pt-4">
+                    <button type="submit" class="btn-primary flex-1">
+                        Sauvegarder
+                    </button>
+                    <button type="button" onclick="closeEditProfile()" class="btn-secondary">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeSettingsPage();
+    });
+
+    function initializeSettingsPage() {
+        // Initialize form handlers
+        setupFormHandlers();
+        
+        // Load current settings
+        loadCurrentSettings();
+    }
+
+    function setupFormHandlers() {
+        // Edit profile form
+        document.getElementById('edit-profile-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveProfile();
+        });
+
+        // Auto-save on checkbox changes
+        document.querySelectorAll('input[type="checkbox"], select').forEach(input => {
+            input.addEventListener('change', function() {
+                // Debounced auto-save
+                clearTimeout(this._saveTimeout);
+                this._saveTimeout = setTimeout(() => {
+                    saveSettings();
+                }, 1000);
+            });
+        });
+    }
+
+    function loadCurrentSettings() {
+        // Settings are already loaded from server-side template
+        // This function can be used to load additional dynamic settings
+    }
+
+    async function saveAllSettings() {
+        try {
+            showLoading('Sauvegarde des paramètres...');
+            
+            const settings = collectAllSettings();
+            
+            const response = await apiRequest('/auth/api/preferences', {
+                method: 'POST',
+                body: JSON.stringify(settings)
+            });
+
+            hideLoading();
+
+            if (response.success) {
+                showAlert('Paramètres sauvegardés avec succès', 'success');
+                
+                // Apply theme change if needed
+                if (settings.display && settings.display.theme && settings.display.theme !== 'auto') {
+                    setTheme(settings.display.theme);
+                }
+            }
+        } catch (error) {
+            hideLoading();
+            showAlert('Erreur lors de la sauvegarde', 'error');
+        }
+    }
+
+    function collectAllSettings() {
+        const routePrefs = collectFormData('route-preferences-form');
+        const notifications = collectFormData('notifications-form');
+        const display = collectFormData('display-form');
+        const privacy = collectFormData('privacy-form');
+
+        return {
+            route_preferences: {
+                prefer_fastest: routePrefs.default_route_type === 'fastest',
+                avoid_tolls: routePrefs.avoid_tolls || false,
+                avoid_highways: routePrefs.avoid_highways || false,
+                avoid_ferries: routePrefs.avoid_ferries || false
+            },
+            notifications: {
+                traffic_alerts: notifications.traffic_alerts || false,
+                route_suggestions: notifications.route_suggestions || false,
+                email_updates: notifications.email_updates || false
+            },
+            display: {
+                units: display.units || 'metric',
+                language: display.language || 'fr',
+                theme: display.theme || 'auto'
+            },
+            privacy: {
+                save_history: privacy.save_history !== false,
+                share_analytics: privacy.share_analytics || false
+            }
+        };
+    }
+
+    function collectFormData(formId) {
+        const form = document.getElementById(formId);
+        if (!form) return {};
+        
+        const formData = new FormData(form);
+        const data = {};
+        
+        for (const [key, value] of formData.entries()) {
+            if (form.querySelector(`[name="${key}"][type="checkbox"]`)) {
+                data[key] = value === 'on';
+            } else {
+                data[key] = value;
+            }
+        }
+        
+        // Handle unchecked checkboxes
+        form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            if (!formData.has(checkbox.name)) {
+                data[checkbox.name] = false;
+            }
+        });
+        
+        return data;
+    }
+
+    function editProfile() {
+        document.getElementById('edit-profile-modal').classList.remove('hidden');
+    }
+
+    function closeEditProfile() {
+        document.getElementById('edit-profile-modal').classList.add('hidden');
+    }
+
+    async function saveProfile() {
+        try {
+            const formData = new FormData(document.getElementById('edit-profile-form'));
+            
+            const response = await apiRequest('/auth/api/profile', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: formData.get('name')
+                })
+            });
+
+            if (response.success) {
+                showAlert('Profil mis à jour', 'success');
+                closeEditProfile();
+                
+                // Update UI
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
+        } catch (error) {
+            showAlert('Erreur lors de la mise à jour', 'error');
+        }
+    }
+
+    async function editSavedRoute(routeId) {
+        const routeName = prompt('Nouveau nom de l\'itinéraire :');
+        if (!routeName) return;
+
+        try {
+            const response = await apiRequest(`/api/saved-routes/${routeId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    name: routeName
+                })
+            });
+
+            if (response.success) {
+                showAlert('Itinéraire renommé', 'success');
+                window.location.reload();
+            }
+        } catch (error) {
+            showAlert('Erreur lors de la modification', 'error');
+        }
+    }
+
+    async function deleteSavedRoute(routeId) {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cet itinéraire ?')) {
+            return;
+        }
+
+        try {
+            const response = await apiRequest(`/api/saved-routes/${routeId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.success) {
+                showAlert('Itinéraire supprimé', 'success');
+                window.location.reload();
+            }
+        } catch (error) {
+            showAlert('Erreur lors de la suppression', 'error');
+        }
+    }
+
+    async function exportUserData() {
+        try {
+            showLoading('Préparation de l\'export...');
+            
+            const response = await apiRequest('/auth/api/export-data', {
+                method: 'POST'
+            });
+
+            hideLoading();
+
+            if (response.success) {
+                // Create download
+                const blob = new Blob([JSON.stringify(response.data, null, 2)], { 
+                    type: 'application/json' 
+                });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `smart-route-data-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showAlert('Données exportées avec succès', 'success');
+            }
+        } catch (error) {
+            hideLoading();
+            showAlert('Erreur lors de l\'export', 'error');
+        }
+    }
+
+    async function deleteAccount() {
+        const confirmation = prompt(
+            'Pour confirmer la suppression de votre compte, tapez "SUPPRIMER" :'
+        );
+        
+        if (confirmation !== 'SUPPRIMER') {
+            return;
+        }
+
+        if (!confirm('Cette action est irréversible. Continuer ?')) {
+            return;
+        }
+
+        try {
+            const response = await apiRequest('/auth/api/delete-account', {
+                method: 'POST',
+                body: JSON.stringify({
+                    confirm: true
+                })
+            });
+
+            if (response.success) {
+                showAlert('Compte supprimé avec succès', 'success');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            }
+        } catch (error) {
+            showAlert('Erreur lors de la suppression', 'error');
+        }
+    }
+
+    function resetSettings() {
+        if (!confirm('Êtes-vous sûr de vouloir réinitialiser tous les paramètres ?')) {
+            return;
+        }
+
+        // Reset all forms to default values
+        document.querySelectorAll('form').forEach(form => {
+            form.reset();
+        });
+
+        showAlert('Paramètres réinitialisés', 'info');
+    }
+
+    // Auto-save function
+    async function saveSettings() {
+        try {
+            const settings = collectAllSettings();
+            
+            await apiRequest('/auth/api/preferences', {
+                method: 'POST',
+                body: JSON.stringify(settings)
+            });
+
+            // Show subtle success indicator
+            const indicator = document.createElement('div');
+            indicator.className = 'fixed top-4 right-4 bg-green-500 text-white px-3 py-1 rounded text-sm';
+            indicator.textContent = 'Sauvegardé';
+            document.body.appendChild(indicator);
+            
+            setTimeout(() => {
+                indicator.remove();
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Auto-save error:', error);
+        }
+    }
+</script>
+{% endblock %}

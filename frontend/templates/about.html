@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block title %}À propos - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Hero Section -->
+    <section class="bg-gradient-to-br from-primary-600 via-primary-700 to-purple-700 text-white py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 class="text-4xl md:text-6xl font-bold mb-6">
+                À propos de {{ app_name }}
+            </h1>
+            <p class="text-xl md:text-2xl text-primary-100 max-w-3xl mx-auto">
+                L'intelligence artificielle au service de vos déplacements quotidiens
+            </p>
+        </div>
+    </section>
+
+    <!-- Mission Section -->
+    <section class="py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
+                    Notre mission
+                </h2>
+                <p class="text-xl text-gray-600 dark:text-gray-300 max-w-4xl mx-auto leading-relaxed">
+                    Révolutionner la façon dont vous vous déplacez en utilisant l'intelligence artificielle 
+                    pour analyser le trafic en temps réel et vous proposer les itinéraires les plus optimaux. 
+                    Notre objectif est de vous faire économiser du temps tout en réduisant votre stress 
+                    et votre impact environnemental.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                        Pourquoi {{ app_name }} ?
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="w-8 h-8 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                                <i class="fas fa-brain text-primary-600 dark:text-primary-400"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h4 class="font-semibold text-gray-900 dark:text-white">Intelligence artificielle avancée</h4>
+                                <p class="text-gray-600 dark:text-gray-300">
+                                    Notre algorithme analyse des millions de points de données en temps réel pour prédire les meilleures routes.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start">
+                            <div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                                <i class="fas fa-leaf text-green-600 dark:text-green-400"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h4 class="font-semibold text-gray-900 dark:text-white">Impact environnemental positif</h4>
+                                <p class="text-gray-600 dark:text-gray-300">
+                                    En évitant les embouteillages, vous réduisez votre consommation de carburant et vos émissions de CO₂.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start">
+                            <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                                <i class="fas fa-shield-alt text-blue-600 dark:text-blue-400"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h4 class="font-semibold text-gray-900 dark:text-white">Confidentialité respectée</h4>
+                                <p class="text-gray-600 dark:text-gray-300">
+                                    Vos données personnelles sont protégées et ne sont jamais partagées avec des tiers.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+                        Statistiques en temps réel
+                    </h3>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                                {{ '{:,}'.format(global_stats.total_routes_calculated).replace(',', ' ') }}
+                            </div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Itinéraires calculés</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-green-600 dark:text-green-400">
+                                {{ global_stats.total_time_saved_hours }}h
+                            </div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Temps économisé</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                                {{ global_stats.total_active_users }}
+                            </div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Utilisateurs actifs</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                                {{ global_stats.average_optimization_score }}/10
+                            </div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Score moyen</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Technology Section -->
+    <section class="py-16 bg-white dark:bg-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
+                    Notre technologie
+                </h2>
+                <p class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+                    Découvrez les technologies de pointe qui alimentent {{ app_name }}
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Tech Card 1 -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
+                    <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-map text-blue-600 dark:text-blue-400 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">HERE Maps API</h3>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        Données cartographiques de haute qualité et informations de trafic en temps réel 
+                        couvrant le monde entier.
+                    </p>
+                </div>
+
+                <!-- Tech Card 2 -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
+                    <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-robot text-green-600 dark:text-green-400 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Algorithmes IA</h3>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        Intelligence artificielle avancée pour l'analyse prédictive du trafic et 
+                        l'optimisation des itinéraires.
+                    </p>
+                </div>
+
+                <!-- Tech Card 3 -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
+                    <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-cloud text-purple-600 dark:text-purple-400 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Infrastructure Cloud</h3>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        Architecture scalable et fiable pour traiter des millions de requêtes 
+                        avec une latence minimale.
+                    </p>
+                </div>
+
+                <!-- Tech Card 4 -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
+                    <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-database text-red-600 dark:text-red-400 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Big Data Analytics</h3>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        Traitement en temps réel de millions de points de données pour des 
+                        prédictions toujours plus précises.
+                    </p>
+                </div>
+
+                <!-- Tech Card 5 -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
+                    <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-mobile-alt text-yellow-600 dark:text-yellow-400 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Progressive Web App</h3>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        Interface moderne et responsive, fonctionnant sur tous les appareils 
+                        avec une expérience native.
+                    </p>
+                </div>
+
+                <!-- Tech Card 6 -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
+                    <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-lock text-indigo-600 dark:text-indigo-400 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Sécurité Avancée</h3>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        Chiffrement end-to-end et authentification OAuth 2.0 pour protéger 
+                        vos données personnelles.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section class="py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
+                    Notre équipe
+                </h2>
+                <p class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+                    Une équipe passionnée de développeurs et d'experts en intelligence artificielle
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Team Member 1 -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow duration-300">
+                    <div class="w-24 h-24 bg-gradient-to-br from-primary-500 to-purple-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <span class="text-white text-2xl font-bold">JD</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Jean Dupont</h3>
+                    <p class="text-primary-600 dark:text-primary-400 mb-3">Lead Developer</p>
+                    <p class="text-gray-600 dark:text-gray-300 text-sm">
+                        Expert en développement web full-stack avec 8 ans d'expérience dans les applications mobiles.
+                    </p>
+                </div>
+
+                <!-- Team Member 2 -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow duration-300">
+                    <div class="w-24 h-24 bg-gradient-to-br from-green-500 to-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <span class="text-white text-2xl font-bold">ML</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Marie Leroy</h3>
+                    <p class="text-primary-600 dark:text-primary-400 mb-3">Data Scientist</p>
+                    <p class="text-gray-600 dark:text-gray-300 text-sm">
+                        Spécialiste en machine learning et analyse de données avec un doctorat en IA.
+                    </p>
+                </div>
+
+                <!-- Team Member 3 -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center hover:shadow-xl transition-shadow duration-300">
+                    <div class="w-24 h-24 bg-gradient-to-br from-yellow-500 to-red-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <span class="text-white text-2xl font-bold">AM</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Antoine Martin</h3>
+                    <p class="text-primary-600 dark:text-primary-400 mb-3">UX/UI Designer</p>
+                    <p class="text-gray-600 dark:text-gray-300 text-sm">
+                        Designer expérimenté en interfaces utilisateur, passionné par l'expérience utilisateur.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="py-16 bg-white dark:bg-gray-800">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
+                    Questions fréquentes
+                </h2>
+                <p class="text-xl text-gray-600 dark:text-gray-300">
+                    Trouvez rapidement les réponses à vos questions
+                </p>
+            </div>
+
+            <div class="space-y-6">
+                <!-- FAQ Item 1 -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+                    <button class="flex items-center justify-between w-full text-left" onclick="toggleFAQ(this)">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                            Comment {{ app_name }} calcule-t-il les itinéraires optimaux ?
+                        </h3>
+                        <i class="fas fa-chevron-down text-gray-400 transform transition-transform duration-200"></i>
+                    </button>
+                    <div class="faq-content hidden mt-4">
+                        <p class="text-gray-600 dark:text-gray-300">
+                            Notre algorithme d'intelligence artificielle analyse en temps réel de multiples facteurs : 
+                            conditions de trafic actuelles, incidents reportés, données historiques, conditions météo, 
+                            et événements spéciaux. Il calcule ensuite un score d'optimisation pour chaque itinéraire 
+                            possible et vous recommande le meilleur.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 2 -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+                    <button class="flex items-center justify-between w-full text-left" onclick="toggleFAQ(this)">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                            L'application fonctionne-t-elle hors ligne ?
+                        </h3>
+                        <i class="fas fa-chevron-down text-gray-400 transform transition-transform duration-200"></i>
+                    </button>
+                    <div class="faq-content hidden mt-4">
+                        <p class="text-gray-600 dark:text-gray-300">
+                            {{ app_name }} nécessite une connexion internet pour accéder aux données de trafic en temps réel 
+                            et calculer les itinéraires optimaux. Cependant, vos itinéraires sauvegardés et votre historique 
+                            restent accessibles hors ligne.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 3 -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+                    <button class="flex items-center justify-between w-full text-left" onclick="toggleFAQ(this)">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                            Mes données personnelles sont-elles sécurisées ?
+                        </h3>
+                        <i class="fas fa-chevron-down text-gray-400 transform transition-transform duration-200"></i>
+                    </button>
+                    <div class="faq-content hidden mt-4">
+                        <p class="text-gray-600 dark:text-gray-300">
+                            Absolument. Nous utilisons un chiffrement de niveau bancaire pour protéger vos données. 
+                            Vos informations personnelles ne sont jamais partagées avec des tiers et vous gardez 
+                            le contrôle total sur vos données. Vous pouvez les exporter ou les supprimer à tout moment.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 4 -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+                    <button class="flex items-center justify-between w-full text-left" onclick="toggleFAQ(this)">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                            L'application est-elle gratuite ?
+                        </h3>
+                        <i class="fas fa-chevron-down text-gray-400 transform transition-transform duration-200"></i>
+                    </button>
+                    <div class="faq-content hidden mt-4">
+                        <p class="text-gray-600 dark:text-gray-300">
+                            {{ app_name }} est entièrement gratuit pour tous les utilisateurs. Nous croyons que l'accès 
+                            à des itinéraires optimisés devrait être disponible pour tous. Notre modèle économique est 
+                            basé sur des partenariats technologiques, pas sur la monétisation des données utilisateur.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 5 -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+                    <button class="flex items-center justify-between w-full text-left" onclick="toggleFAQ(this)">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                            Dans quelles régions l'application est-elle disponible ?
+                        </h3>
+                        <i class="fas fa-chevron-down text-gray-400 transform transition-transform duration-200"></i>
+                    </button>
+                    <div class="faq-content hidden mt-4">
+                        <p class="text-gray-600 dark:text-gray-300">
+                            {{ app_name }} est actuellement disponible dans toutes les régions couvertes par HERE Maps, 
+                            soit plus de 200 pays et territoires. La qualité des données de trafic peut varier selon 
+                            les régions, étant plus précise dans les zones urbaines densément peuplées.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="py-16">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
+                Nous contacter
+            </h2>
+            <p class="text-xl text-gray-600 dark:text-gray-300 mb-8">
+                Une question ? Une suggestion ? N'hésitez pas à nous écrire !
+            </p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-envelope text-primary-600 dark:text-primary-400 text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Email</h3>
+                    <p class="text-gray-600 dark:text-gray-300">contact@smartroute.com</p>
+                </div>
+
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-comments text-green-600 dark:text-green-400 text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Support</h3>
+                    <p class="text-gray-600 dark:text-gray-300">Chat en ligne 24/7</p>
+                </div>
+
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fab fa-twitter text-blue-600 dark:text-blue-400 text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Réseaux sociaux</h3>
+                    <p class="text-gray-600 dark:text-gray-300">@SmartRouteApp</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function toggleFAQ(button) {
+        const content = button.nextElementSibling;
+        const icon = button.querySelector('i');
+        
+        if (content.classList.contains('hidden')) {
+            content.classList.remove('hidden');
+            icon.style.transform = 'rotate(180deg)';
+        } else {
+            content.classList.add('hidden');
+            icon.style.transform = 'rotate(0deg)';
+        }
+    }
+
+    // Animate statistics on scroll
+    function animateCounters() {
+        const counters = document.querySelectorAll('[data-count]');
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const target = parseInt(entry.target.getAttribute('data-count'));
+                    const duration = 2000;
+                    const step = target / (duration / 16);
+                    let current = 0;
+                    
+                    const timer = setInterval(() => {
+                        current += step;
+                        if (current >= target) {
+                            entry.target.textContent = target.toLocaleString();
+                            clearInterval(timer);
+                        } else {
+                            entry.target.textContent = Math.floor(current).toLocaleString();
+                        }
+                    }, 16);
+                    
+                    observer.unobserve(entry.target);
+                }
+            });
+        });
+        
+        counters.forEach(counter => observer.observe(counter));
+    }
+
+    document.addEventListener('DOMContentLoaded', animateCounters);
+</script>
+{% endblock %}

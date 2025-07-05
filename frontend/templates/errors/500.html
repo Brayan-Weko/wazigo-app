@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Erreur serveur - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full text-center">
+        <div class="mb-8">
+            <div class="text-9xl font-bold text-red-600 dark:text-red-400 mb-4">500</div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                Erreur serveur
+            </h1>
+            <p class="text-gray-600 dark:text-gray-300 mb-8">
+                Une erreur interne s'est produite. Nous travaillons à résoudre le problème.
+            </p>
+        </div>
+        
+        <div class="space-y-4">
+            <button onclick="window.location.reload()" 
+                    class="btn-primary w-full">
+                <i class="fas fa-sync-alt mr-2"></i>
+                Actualiser la page
+            </button>
+            
+            <a href="{{ url_for('main.index') }}" 
+               class="btn-secondary w-full">
+                <i class="fas fa-home mr-2"></i>
+                Retour à l'accueil
+            </a>
+        </div>
+        
+        <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                Code d'erreur: {{ request.endpoint or 'UNKNOWN' }} - {{ moment().format('YYYY-MM-DD HH:mm') }}
+            </p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                <a href="mailto:support@smartroute.com" class="text-primary-600 dark:text-primary-400 hover:underline">
+                    Signaler ce problème
+                </a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

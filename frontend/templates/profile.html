@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block title %}Mon profil - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Profile Header -->
+        <div class="bg-gradient-to-r from-primary-600 to-purple-600 rounded-xl shadow-lg p-8 mb-8 text-white">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div class="flex items-center space-x-6">
+                    {% if profile_data.user.avatar_url %}
+                        <img src="{{ profile_data.user.avatar_url }}" 
+                             alt="{{ profile_data.user.name }}" 
+                             class="w-24 h-24 rounded-full border-4 border-white shadow-lg">
+                    {% else %}
+                        <div class="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
+                            <span class="text-white text-3xl font-medium">
+                                {{ profile_data.user.name[0].upper() if profile_data.user.name else 'U' }}
+                            </span>
+                        </div>
+                    {% endif %}
+                    
+                    <div>
+                        <h1 class="text-3xl font-bold">{{ profile_data.user.name }}</h1>
+                        <p class="text-primary-100 text-lg">{{ profile_data.user.email|mask_email }}</p>
+                        <p class="text-primary-200 text-sm">
+                            Membre depuis {{ profile_data.user.created_at.strftime('%B %Y') if profile_data.user.created_at else 'récemment' }}
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="mt-6 md:mt-0 text-center md:text-right">
+                    <div class="text-2xl font-bold">{{ profile_data.analytics.efficiency_score or 0 }}%</div>
+                    <div class="text-primary-100">Score d'efficacité</div>
+                    <a href="{{ url_for('main.settings') }}" class="btn-secondary mt-4 bg-white text-primary-600 hover:bg-gray-100">
+                        <i class="fas fa-edit mr-2"></i>
+                        Modifier le profil
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Stats Cards -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Overview Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-route text-blue-600 dark:text-blue-400 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm text-gray-600 dark:text-gray-300">Trajets calculés</div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white">
+                                    {{ profile_data.analytics.total_routes_searched or 0 }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-clock text-green-600 dark:text-green-400 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm text-gray-600 dark:text-gray-300">Temps économisé</div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white">
+                                    {{ (profile_data.analytics.total_time_saved_minutes // 60) or 0 }}h
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-road text-purple-600 dark:text-purple-400 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm text-gray-600 dark:text-gray-300">Distance totale</div>
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white">
+                                    {{ profile_data.analytics.total_distance_km|round(0)|int or 0 }}km
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                        <i class="fas fa-clock text-primary-600 mr-3"></i>
+                        Activité récente
+                    </h2>
+                    
+                    {% if profile_data.recent_activity %}
+                        <div class="space-y-4">
+                            {% for activity in profile_data.recent_activity %}
+                            <div class="flex items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-route text-primary-600 dark:text-primary-400"></i>
+                                </div>
+                                <div class="ml-4 flex-1">
+                                    <div class="font-medium text-gray-900 dark:text-white">
+                                        {{ activity.origin_address|truncate(30) }} → {{ activity.destination_address|truncate(30) }}
+                                    </div>
+                                    <div class="text-sm text-gray-600 dark:text-gray-300">
+                                        {{ activity.travel_time_seconds|format_duration }} • {{ activity.distance_meters|format_distance }} • Score: {{ activity.optimization_score|round(1) }}/10
+                                    </div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ activity.created_at|time_ago }}
+                                    </div>
+                                </div>
+                                <button onclick="repeatRoute('{{ activity.origin_address }}', '{{ activity.destination_address }}')" 
+                                        class="btn-secondary text-sm">
+                                    <i class="fas fa-redo mr-1"></i>
+                                    Refaire
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-route text-4xl mb-4"></i>
+                            <p>Aucune activité récente</p>
+                            <p class="text-sm">Commencez par rechercher un itinéraire</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Achievements -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                        <i class="fas fa-trophy text-yellow-500 mr-3"></i>
+                        Accomplissements
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Achievement badges -->
+                        <div class="achievement-badge {{ 'earned' if profile_data.analytics.total_routes_searched >= 10 else 'locked' }}">
+                            <div class="flex items-center">
+                                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-route text-blue-600 dark:text-blue-400"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="font-medium text-gray-900 dark:text-white">Explorateur</div>
+                                    <div class="text-sm text-gray-600 dark:text-gray-300">10 trajets calculés</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="achievement-badge {{ 'earned' if profile_data.analytics.total_time_saved_minutes >= 3600 else 'locked' }}">
+                            <div class="flex items-center">
+                                <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-clock text-green-600 dark:text-green-400"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="font-medium text-gray-900 dark:text-white">Maître du temps</div>
+                                    <div class="text-sm text-gray-600 dark:text-gray-300">1h économisée</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="achievement-badge {{ 'earned' if profile_data.analytics.average_optimization_score >= 8 else 'locked' }}">
+                            <div class="flex items-center">
+                                <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-star text-purple-600 dark:text-purple-400"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="font-medium text-gray-900 dark:text-white">Optimiseur expert</div>
+                                    <div class="text-sm text-gray-600 dark:text-gray-300">Score moyen 8+</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="achievement-badge {{ 'earned' if profile_data.favorite_routes|length >= 5 else 'locked' }}">
+                            <div class="flex items-center">
+                                <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-heart text-yellow-600 dark:text-yellow-400"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="font-medium text-gray-900 dark:text-white">Collectionneur</div>
+                                    <div class="text-sm text-gray-600 dark:text-gray-300">5 favoris sauvegardés</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Favorite Routes -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                        <i class="fas fa-star text-yellow-500 mr-2"></i>
+                        Favoris
+                        <span class="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                            ({{ profile_data.favorite_routes|length }})
+                        </span>
+                    </h3>
+                    
+                    {% if profile_data.favorite_routes %}
+                        <div class="space-y-3">
+                            {% for route in profile_data.favorite_routes[:3] %}
+                            <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="font-medium text-gray-900 dark:text-white text-sm">{{ route.name }}</div>
+                                <div class="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                                    {{ route.coordinates.origin.address|truncate(25) }}
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
+                                    → {{ route.coordinates.destination.address|truncate(25) }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                            {% if profile_data.favorite_routes|length > 3 %}
+                                <div class="text-center">
+                                    <a href="{{ url_for('main.settings') }}" 
+                                       class="text-primary-600 dark:text-primary-400 text-sm hover:underline">
+                                        Voir tous ({{ profile_data.favorite_routes|length }})
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-star text-2xl mb-2"></i>
+                            <p class="text-sm">Aucun favori</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                        Statistiques rapides
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-300">Cette semaine</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">
+                                {{ profile_data.analytics.weekly_stats.routes_count or 0 }} trajets
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-300">Temps économisé</span>
+                            <span class="font-semibold text-green-600 dark:text-green-400">
+                                {{ profile_data.analytics.weekly_stats.time_saved_minutes or 0 }}min
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-300">Score moyen</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">
+                                {{ profile_data.analytics.average_optimization_score|round(1) or 0 }}/10
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-300">Rang personnel</span>
+                            <span class="font-semibold text-primary-600 dark:text-primary-400">
+                                {{ "Expert" if profile_data.analytics.efficiency_score >= 80 else
+                                   "Avancé" if profile_data.analytics.efficiency_score >= 60 else
+                                   "Intermédiaire" if profile_data.analytics.efficiency_score >= 40 else
+                                   "Débutant" }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Environmental Impact -->
+                <div class="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                        <i class="fas fa-leaf text-green-600 mr-2"></i>
+                        Impact environnemental
+                    </h3>
+                    
+                    <div class="space-y-3">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-green-600 dark:text-green-400">
+                                {{ ((profile_data.analytics.total_distance_km or 0) * 0.07 * 2.31)|round(1) }}kg
+                            </div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">CO₂ émis</div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <div class="text-lg font-semibold text-green-600 dark:text-green-400">
+                                {{ ((profile_data.analytics.total_time_saved_minutes or 0) * 0.2)|round(1) }}kg
+                            </div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">CO₂ économisé</div>
+                        </div>
+                        
+                        <div class="mt-4 p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                            <p class="text-sm text-green-800 dark:text-green-200 text-center">
+                                En évitant les embouteillages, vous contribuez à réduire la pollution !
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                        Actions rapides
+                    </h3>
+                    
+                    <div class="space-y-3">
+                        <a href="{{ url_for('main.search') }}" 
+                           class="w-full btn-primary">
+                            <i class="fas fa-search mr-2"></i>
+                            Nouveau trajet
+                        </a>
+                        <a href="{{ url_for('main.analytics') }}" 
+                           class="w-full btn-secondary">
+                            <i class="fas fa-chart-line mr-2"></i>
+                            Voir analytics
+                        </a>
+                        <a href="{{ url_for('main.history') }}" 
+                           class="w-full btn-secondary">
+                            <i class="fas fa-history mr-2"></i>
+                            Historique
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function repeatRoute(origin, destination) {
+        const params = new URLSearchParams({
+            origin: origin,
+            destination: destination
+        });
+        
+        window.location.href = `{{ url_for('main.results') }}?${params.toString()}`;
+    }
+</script>
+
+<style>
+    .achievement-badge {
+        @apply p-4 rounded-lg border-2 transition-all duration-200;
+    }
+    
+    .achievement-badge.earned {
+        @apply border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20;
+    }
+    
+    .achievement-badge.locked {
+        @apply border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 opacity-60;
+    }
+    
+    .achievement-badge.earned .fas {
+        @apply text-green-600 dark:text-green-400;
+    }
+    
+    .achievement-badge.locked .fas {
+        @apply text-gray-400;
+    }
+</style>
+{% endblock %}

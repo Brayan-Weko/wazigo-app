@@ -1,0 +1,585 @@
+{% extends "base.html" %}
+
+{% block title %}Résultats - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header avec recherche -->
+    <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-16 z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <!-- Search summary -->
+                <div class="flex-1">
+                    <h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                        Itinéraires trouvés
+                    </h1>
+                    <div class="text-sm text-gray-600 dark:text-gray-300" id="search-summary">
+                        <span id="origin-display">{{ search_data.origin }}</span>
+                        <i class="fas fa-arrow-right mx-2"></i>
+                        <span id="destination-display">{{ search_data.destination }}</span>
+                    </div>
+                </div>
+                
+                <!-- Quick actions -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="modifySearch()" 
+                            class="btn-secondary">
+                        <i class="fas fa-edit mr-2"></i>
+                        Modifier
+                    </button>
+                    <button onclick="refreshResults()" 
+                            id="refresh-btn"
+                            class="btn-outline">
+                        <i class="fas fa-sync-alt mr-2"></i>
+                        Actualiser
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Routes list -->
+            <div class="lg:col-span-1 space-y-4">
+                <!-- Loading state -->
+                <div id="routes-loading" class="space-y-4">
+                    {% for i in range(3) %}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="animate-pulse">
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="space-y-2">
+                                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+                                    <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                                </div>
+                                <div class="h-6 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Routes container -->
+                <div id="routes-container" class="space-y-4 hidden">
+                    <!-- Routes will be populated by JavaScript -->
+                </div>
+
+                <!-- No results -->
+                <div id="no-results" class="hidden">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-8 text-center shadow-lg">
+                        <i class="fas fa-search text-4xl text-gray-400 mb-4"></i>
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                            Aucun itinéraire trouvé
+                        </h3>
+                        <p class="text-gray-600 dark:text-gray-300 mb-4">
+                            Vérifiez vos adresses ou essayez d'autres options.
+                        </p>
+                        <button onclick="modifySearch()" class="btn-primary">
+                            <i class="fas fa-edit mr-2"></i>
+                            Modifier la recherche
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Error state -->
+                <div id="error-state" class="hidden">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-8 text-center shadow-lg">
+                        <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                            Erreur de calcul
+                        </h3>
+                        <p class="text-gray-600 dark:text-gray-300 mb-4" id="error-message">
+                            Une erreur s'est produite lors du calcul des itinéraires.
+                        </p>
+                        <button onclick="refreshResults()" class="btn-primary">
+                            <i class="fas fa-sync-alt mr-2"></i>
+                            Réessayer
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map -->
+            <div class="lg:col-span-2">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-medium text-gray-900 dark:text-white">
+                                <i class="fas fa-map text-primary-600 mr-2"></i>
+                                Carte interactive
+                            </h2>
+                            <div class="flex items-center space-x-2">
+                                <!-- Map controls -->
+                                <button onclick="toggleTrafficLayer()" 
+                                        id="traffic-toggle"
+                                        class="btn-secondary text-sm">
+                                    <i class="fas fa-road mr-1"></i>
+                                    Trafic
+                                </button>
+                                <button onclick="centerMap()" 
+                                        class="btn-secondary text-sm">
+                                    <i class="fas fa-crosshairs mr-1"></i>
+                                    Centrer
+                                </button>
+                                <button onclick="toggleFullscreen()" 
+                                        class="btn-secondary text-sm">
+                                    <i class="fas fa-expand mr-1"></i>
+                                    Plein écran
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Map container -->
+                    <div id="map-container" class="map-container h-96 lg:h-[600px] relative">
+                        <div class="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+                            <div class="text-center">
+                                <div class="loading-spinner mx-auto mb-4"></div>
+                                <p class="text-gray-600 dark:text-gray-300">Chargement de la carte...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Route details modal -->
+        <div id="route-details-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+                            Détails de l'itinéraire
+                        </h3>
+                        <button onclick="closeRouteDetails()" 
+                                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div id="route-details-content">
+                        <!-- Content will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/maps.js') }}"></script>
+<script>
+    // Initialize results page
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeResultsPage();
+    });
+
+    let currentRoutes = [];
+    let selectedRouteIndex = 0;
+    let map = null;
+
+    function initializeResultsPage() {
+        // Get search parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchParams = {
+            origin: urlParams.get('origin'),
+            destination: urlParams.get('destination'),
+            departure_time: urlParams.get('departure_time'),
+            route_type: urlParams.get('route_type') || 'fastest',
+            avoid_tolls: urlParams.get('avoid_tolls') === 'true',
+            avoid_highways: urlParams.get('avoid_highways') === 'true',
+            avoid_ferries: urlParams.get('avoid_ferries') === 'true'
+        };
+
+        // Validate required parameters
+        if (!searchParams.origin || !searchParams.destination) {
+            showError('Paramètres de recherche manquants');
+            return;
+        }
+
+        // Update display
+        document.getElementById('origin-display').textContent = searchParams.origin;
+        document.getElementById('destination-display').textContent = searchParams.destination;
+
+        // Initialize map
+        initializeMap();
+
+        // Search for routes
+        searchRoutes(searchParams);
+    }
+
+    async function searchRoutes(searchParams) {
+        try {
+            showLoading();
+            
+            const response = await apiRequest('/api/search-routes', {
+                method: 'POST',
+                body: JSON.stringify(searchParams)
+            });
+
+            hideLoading();
+
+            if (response.success && response.routes && response.routes.length > 0) {
+                currentRoutes = response.routes;
+                displayRoutes(currentRoutes);
+                displayRoutesOnMap(currentRoutes);
+                selectRoute(0); // Select first route by default
+            } else {
+                showNoResults();
+            }
+
+        } catch (error) {
+            hideLoading();
+            showError(error.message || 'Erreur lors du calcul des itinéraires');
+        }
+    }
+
+    function displayRoutes(routes) {
+        const container = document.getElementById('routes-container');
+        const loadingElement = document.getElementById('routes-loading');
+        
+        loadingElement.classList.add('hidden');
+        container.classList.remove('hidden');
+        container.innerHTML = '';
+
+        routes.forEach((route, index) => {
+            const routeElement = createRouteCard(route, index);
+            container.appendChild(routeElement);
+        });
+    }
+
+    function createRouteCard(route, index) {
+        const card = document.createElement('div');
+        card.className = `route-card ${index === selectedRouteIndex ? 'selected' : ''}`;
+        card.onclick = () => selectRoute(index);
+
+        const summary = route.summary;
+        const score = route.optimization_score;
+        const recommendation = route.recommendation;
+
+        card.innerHTML = `
+            <div class="flex items-start justify-between mb-4">
+                <div class="flex-1">
+                    <div class="flex items-center mb-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getScoreClass(score)}">
+                            ${formatScore(score)}
+                        </span>
+                        ${recommendation ? `
+                            <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" style="background-color: ${recommendation.color}20; color: ${recommendation.color};">
+                                ${recommendation.title}
+                            </span>
+                        ` : ''}
+                    </div>
+                    <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                        ${formatDuration(summary.duration)}
+                    </div>
+                    <div class="text-sm text-gray-600 dark:text-gray-300">
+                        ${formatDistance(summary.length)}
+                        ${summary.delay_info && summary.delay_info.delay_seconds > 0 ? 
+                            `<span class="text-orange-600 dark:text-orange-400 ml-2">
+                                +${formatDuration(summary.delay_info.delay_seconds)}
+                            </span>` : ''
+                        }
+                    </div>
+                </div>
+                <div class="flex flex-col items-end">
+                    <button onclick="event.stopPropagation(); startNavigation(${index})" 
+                            class="btn-primary text-sm mb-2">
+                        <i class="fas fa-play mr-1"></i>
+                        Partir
+                    </button>
+                    <button onclick="event.stopPropagation(); showRouteDetails(${index})" 
+                            class="text-gray-400 hover:text-primary-600 transition-colors">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Traffic info -->
+            ${route.traffic_analysis ? `
+                <div class="flex items-center mb-3">
+                    <div class="w-3 h-3 rounded-full ${getTrafficClass(route.traffic_analysis.level)} mr-2"></div>
+                    <span class="text-sm text-gray-600 dark:text-gray-300">
+                        ${route.traffic_analysis.description}
+                    </span>
+                </div>
+            ` : ''}
+
+            <!-- Incidents -->
+            ${route.incidents && route.incidents.length > 0 ? `
+                <div class="mb-3">
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Incidents signalés :</div>
+                    <div class="space-y-1">
+                        ${route.incidents.slice(0, 2).map(incident => `
+                            <div class="flex items-center text-xs text-gray-600 dark:text-gray-300">
+                                <span class="mr-1">${incident.icon}</span>
+                                <span>${incident.title}</span>
+                            </div>
+                        `).join('')}
+                        ${route.incidents.length > 2 ? `
+                            <div class="text-xs text-gray-500">+${route.incidents.length - 2} autres</div>
+                        ` : ''}
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- Cost and environmental -->
+            <div class="grid grid-cols-2 gap-4 text-xs text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-200 dark:border-gray-700">
+                ${route.cost_estimate ? `
+                    <div>
+                        <i class="fas fa-euro-sign mr-1"></i>
+                        ~${route.cost_estimate.total_cost}€
+                    </div>
+                ` : ''}
+                ${route.environmental_impact ? `
+                    <div>
+                        <i class="fas fa-leaf mr-1"></i>
+                        ${route.environmental_impact.estimated_co2_emission.toFixed(1)}kg CO₂
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        return card;
+    }
+
+    function selectRoute(index) {
+        selectedRouteIndex = index;
+        
+        // Update UI
+        document.querySelectorAll('.route-card').forEach((card, i) => {
+            card.classList.toggle('selected', i === index);
+        });
+
+        // Update map
+        if (map && currentRoutes[index]) {
+            highlightRouteOnMap(currentRoutes[index], index);
+        }
+
+        trackEvent('route_selected', { index, route_id: currentRoutes[index]?.id });
+    }
+
+    function startNavigation(routeIndex) {
+        const route = currentRoutes[routeIndex];
+        if (!route) return;
+
+        // Save route to history and start navigation
+        const params = new URLSearchParams({
+            route_id: route.id || `temp_${Date.now()}`
+        });
+
+        window.location.href = `{{ url_for('main.navigation') }}?${params.toString()}`;
+    }
+
+    function showRouteDetails(routeIndex) {
+        const route = currentRoutes[routeIndex];
+        if (!route) return;
+
+        const modal = document.getElementById('route-details-modal');
+        const content = document.getElementById('route-details-content');
+
+        content.innerHTML = generateRouteDetailsHTML(route);
+        modal.classList.remove('hidden');
+    }
+
+    function closeRouteDetails() {
+        document.getElementById('route-details-modal').classList.add('hidden');
+    }
+
+    function generateRouteDetailsHTML(route) {
+        const summary = route.summary;
+        
+        return `
+            <div class="space-y-6">
+                <!-- Overview -->
+                <div>
+                    <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Aperçu</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Durée</div>
+                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                                ${formatDuration(summary.duration)}
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Distance</div>
+                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                                ${formatDistance(summary.length)}
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Score</div>
+                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                                ${formatScore(route.optimization_score)}
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Coût estimé</div>
+                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                                ${route.cost_estimate ? route.cost_estimate.total_cost + '€' : 'N/A'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Traffic Analysis -->
+                ${route.traffic_analysis ? `
+                    <div>
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Analyse du trafic</h4>
+                        <div class="flex items-center mb-2">
+                            <div class="w-4 h-4 rounded-full ${getTrafficClass(route.traffic_analysis.level)} mr-3"></div>
+                            <span class="font-medium text-gray-900 dark:text-white">
+                                ${route.traffic_analysis.description}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-300">
+                            Fluidité : ${route.traffic_analysis.ratio.toFixed(1)}x le temps normal
+                        </p>
+                    </div>
+                ` : ''}
+
+                <!-- Environmental Impact -->
+                ${route.environmental_impact ? `
+                    <div>
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Impact environnemental</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Consommation estimée</span>
+                                <span class="font-medium">${route.environmental_impact.estimated_fuel_consumption.toFixed(1)}L</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Émissions CO₂</span>
+                                <span class="font-medium">${route.environmental_impact.estimated_co2_emission.toFixed(1)}kg</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Score environnemental</span>
+                                <span class="font-medium">${route.environmental_impact.environmental_score}/10</span>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Actions -->
+                <div class="flex space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button onclick="startNavigation(${selectedRouteIndex})" class="btn-primary flex-1">
+                        <i class="fas fa-play mr-2"></i>
+                        Démarrer la navigation
+                    </button>
+                    <button onclick="saveRoute(${selectedRouteIndex})" class="btn-secondary">
+                        <i class="fas fa-star mr-2"></i>
+                        Sauvegarder
+                    </button>
+                    <button onclick="shareRoute(currentRoutes[${selectedRouteIndex}])" class="btn-secondary">
+                        <i class="fas fa-share mr-2"></i>
+                        Partager
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function modifySearch() {
+        const params = new URLSearchParams(window.location.search);
+        window.location.href = `{{ url_for('main.search') }}?${params.toString()}`;
+    }
+
+    function refreshResults() {
+        const refreshBtn = document.getElementById('refresh-btn');
+        const originalContent = refreshBtn.innerHTML;
+        
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Actualisation...';
+        refreshBtn.disabled = true;
+
+        // Simulate refresh delay
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    }
+
+    function showLoading() {
+        document.getElementById('routes-loading').classList.remove('hidden');
+        document.getElementById('routes-container').classList.add('hidden');
+        document.getElementById('no-results').classList.add('hidden');
+        document.getElementById('error-state').classList.add('hidden');
+    }
+
+    function hideLoading() {
+        document.getElementById('routes-loading').classList.add('hidden');
+    }
+
+    function showNoResults() {
+        hideLoading();
+        document.getElementById('no-results').classList.remove('hidden');
+    }
+
+    function showError(message) {
+        hideLoading();
+        document.getElementById('error-message').textContent = message;
+        document.getElementById('error-state').classList.remove('hidden');
+    }
+
+    async function saveRoute(routeIndex) {
+        if (!SmartRoute.user) {
+            showAlert('Veuillez vous connecter pour sauvegarder des itinéraires', 'warning');
+            return;
+        }
+
+        const route = currentRoutes[routeIndex];
+        const routeName = prompt('Nom de l\'itinéraire :', 
+            `${route.summary.origin.address.split(',')[0]} → ${route.summary.destination.address.split(',')[0]}`);
+        
+        if (!routeName) return;
+
+        try {
+            const response = await apiRequest('/api/saved-routes', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: routeName,
+                    origin_address: route.summary.origin.address,
+                    origin_lat: route.summary.origin.lat,
+                    origin_lng: route.summary.origin.lng,
+                    destination_address: route.summary.destination.address,
+                    destination_lat: route.summary.destination.lat,
+                    destination_lng: route.summary.destination.lng
+                })
+            });
+
+            if (response.success) {
+                showAlert('Itinéraire sauvegardé avec succès', 'success');
+            }
+        } catch (error) {
+            showAlert('Erreur lors de la sauvegarde', 'error');
+        }
+    }
+
+    // Map functions (to be implemented in maps.js)
+    function initializeMap() {
+        // Implementation in maps.js
+    }
+
+    function displayRoutesOnMap(routes) {
+        // Implementation in maps.js
+    }
+
+    function highlightRouteOnMap(route, index) {
+        // Implementation in maps.js
+    }
+
+    function toggleTrafficLayer() {
+        // Implementation in maps.js
+    }
+
+    function centerMap() {
+        // Implementation in maps.js
+    }
+
+    function toggleFullscreen() {
+        // Implementation in maps.js
+    }
+</script>
+{% endblock %}

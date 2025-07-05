@@ -1,0 +1,552 @@
+{% extends "base.html" %}
+
+{% block title %}Historique - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                        <i class="fas fa-history text-primary-600 mr-3"></i>
+                        Historique des trajets
+                    </h1>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        Consultez et analysez vos recherches d'itinéraires
+                    </p>
+                </div>
+                <div class="mt-4 sm:mt-0 flex space-x-3">
+                    <button onclick="exportHistory()" class="btn-secondary">
+                        <i class="fas fa-download mr-2"></i>
+                        Exporter
+                    </button>
+                    <button onclick="clearHistory()" class="btn-outline text-red-600 border-red-600 hover:bg-red-600 hover:text-white">
+                        <i class="fas fa-trash mr-2"></i>
+                        Effacer
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                <i class="fas fa-filter text-primary-600 mr-2"></i>
+                Filtres
+            </h3>
+            <form id="filter-form" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Date de début
+                    </label>
+                    <input type="date" 
+                           id="date-from" 
+                           name="date_from"
+                           class="input-field">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Date de fin
+                    </label>
+                    <input type="date" 
+                           id="date-to" 
+                           name="date_to"
+                           class="input-field">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Score minimum
+                    </label>
+                    <select id="min-score" name="min_score" class="input-field">
+                        <option value="">Tous</option>
+                        <option value="8">Excellent (8+)</option>
+                        <option value="6">Bon (6+)</option>
+                        <option value="4">Moyen (4+)</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="btn-primary w-full">
+                        <i class="fas fa-search mr-2"></i>
+                        Filtrer
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Summary stats -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Quick stats -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                        Résumé
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-300">Total</span>
+                            <span class="font-semibold text-gray-900 dark:text-white" id="total-count">
+                                {{ history_pagination.total or 0 }}
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-300">Temps économisé</span>
+                            <span class="font-semibold text-gray-900 dark:text-white" id="total-saved">
+                                {{ (analytics_data.total_time_saved_minutes // 60) or 0 }}h
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-300">Score moyen</span>
+                            <span class="font-semibold text-gray-900 dark:text-white" id="avg-score">
+                                {{ analytics_data.average_optimization_score|round(1) or 0 }}/10
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-300">Distance totale</span>
+                            <span class="font-semibold text-gray-900 dark:text-white" id="total-distance">
+                                {{ analytics_data.total_distance_km|round(0)|int or 0 }}km
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Most common routes -->
+                {% if analytics_data.most_used_origin and analytics_data.most_used_destination %}
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                        Trajet principal
+                    </h3>
+                    <div class="text-sm">
+                        <div class="font-medium text-gray-900 dark:text-white mb-2">
+                            {{ analytics_data.most_used_origin|truncate(30) }}
+                        </div>
+                        <div class="text-gray-500 dark:text-gray-400 mb-2">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="font-medium text-gray-900 dark:text-white">
+                            {{ analytics_data.most_used_destination|truncate(30) }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- History list -->
+            <div class="lg:col-span-3">
+                <!-- Loading state -->
+                <div id="history-loading" class="space-y-4 hidden">
+                    {% for i in range(5) %}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="animate-pulse">
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="space-y-2 flex-1">
+                                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                                    <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                                </div>
+                                <div class="h-6 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- History items -->
+                <div id="history-container" class="space-y-4">
+                    {% if history_pagination.items %}
+                        {% for route in history_pagination.items %}
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="flex-1">
+                                    <div class="flex items-center mb-2">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ getScoreClass(route.optimization_score) }}">
+                                            {{ route.optimization_score|round(1) }}/10
+                                        </span>
+                                        <span class="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                            {{ route.created_at|time_ago }}
+                                        </span>
+                                    </div>
+                                    <div class="font-medium text-gray-900 dark:text-white mb-1">
+                                        {{ route.origin_address|truncate(50) }}
+                                    </div>
+                                    <div class="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                                        <i class="fas fa-arrow-down mr-1"></i>
+                                    </div>
+                                    <div class="font-medium text-gray-900 dark:text-white">
+                                        {{ route.destination_address|truncate(50) }}
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2 ml-4">
+                                    <button onclick="repeatRoute({{ route.id }})" 
+                                            class="btn-secondary text-sm">
+                                        <i class="fas fa-redo mr-1"></i>
+                                        Refaire
+                                    </button>
+                                    <button onclick="viewRouteDetails({{ route.id }})" 
+                                            class="text-gray-400 hover:text-primary-600 transition-colors">
+                                        <i class="fas fa-info-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                    <div class="text-gray-500 dark:text-gray-400">Durée</div>
+                                    <div class="font-medium text-gray-900 dark:text-white">
+                                        {{ route.travel_time_seconds|format_duration }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-gray-500 dark:text-gray-400">Distance</div>
+                                    <div class="font-medium text-gray-900 dark:text-white">
+                                        {{ route.distance_meters|format_distance }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-gray-500 dark:text-gray-400">Temps économisé</div>
+                                    <div class="font-medium text-green-600 dark:text-green-400">
+                                        {{ route.time_saved_seconds|format_duration if route.time_saved_seconds > 0 else 'Aucun' }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-gray-500 dark:text-gray-400">Statut</div>
+                                    <div class="flex items-center">
+                                        {% if route.route_completed %}
+                                            <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                                            <span class="text-green-600 dark:text-green-400">Terminé</span>
+                                        {% elif route.route_started %}
+                                            <i class="fas fa-play-circle text-blue-500 mr-1"></i>
+                                            <span class="text-blue-600 dark:text-blue-400">Commencé</span>
+                                        {% else %}
+                                            <i class="fas fa-circle text-gray-400 mr-1"></i>
+                                            <span class="text-gray-500 dark:text-gray-400">Calculé</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-12 text-center shadow-lg">
+                            <i class="fas fa-route text-4xl text-gray-400 mb-4"></i>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                                Aucun historique
+                            </h3>
+                            <p class="text-gray-600 dark:text-gray-300 mb-6">
+                                Vos recherches d'itinéraires apparaîtront ici
+                            </p>
+                            <a href="{{ url_for('main.search') }}" class="btn-primary">
+                                <i class="fas fa-search mr-2"></i>
+                                Rechercher un itinéraire
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Pagination -->
+                {% if history_pagination.pages > 1 %}
+                <div class="mt-8 flex items-center justify-between">
+                    <div class="text-sm text-gray-700 dark:text-gray-300">
+                        Affichage de {{ (history_pagination.page - 1) * history_pagination.per_page + 1 }} à 
+                        {{ history_pagination.page * history_pagination.per_page if history_pagination.page * history_pagination.per_page < history_pagination.total else history_pagination.total }} 
+                        sur {{ history_pagination.total }} résultats
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                        {% if history_pagination.has_prev %}
+                            <a href="{{ url_for('main.history', page=history_pagination.prev_num) }}" 
+                               class="btn-secondary">
+                                <i class="fas fa-chevron-left mr-1"></i>
+                                Précédent
+                            </a>
+                        {% endif %}
+                        
+                        {% for page_num in history_pagination.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != history_pagination.page %}
+                                    <a href="{{ url_for('main.history', page=page_num) }}" 
+                                       class="px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                                        {{ page_num }}
+                                    </a>
+                                {% else %}
+                                    <span class="px-3 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 rounded">
+                                        {{ page_num }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="px-3 py-2 text-sm font-medium text-gray-500">…</span>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if history_pagination.has_next %}
+                            <a href="{{ url_for('main.history', page=history_pagination.next_num) }}" 
+                               class="btn-secondary">
+                                Suivant
+                                <i class="fas fa-chevron-right ml-1"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Route details modal -->
+<div id="route-details-modal" class="modal-overlay hidden">
+    <div class="modal-content max-w-2xl">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+                    Détails du trajet
+                </h3>
+                <button onclick="closeRouteDetails()" 
+                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div id="route-details-content">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeHistoryPage();
+    });
+
+    function initializeHistoryPage() {
+        // Initialize filters
+        const filterForm = document.getElementById('filter-form');
+        filterForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            applyFilters();
+        });
+
+        // Set default date range (last 30 days)
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+        
+        document.getElementById('date-to').value = today.toISOString().split('T')[0];
+        document.getElementById('date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
+    }
+
+    function applyFilters() {
+        const formData = new FormData(document.getElementById('filter-form'));
+        const params = new URLSearchParams();
+        
+        for (const [key, value] of formData.entries()) {
+            if (value) {
+                params.append(key, value);
+            }
+        }
+        
+        // Add current page parameter
+        params.append('page', '1');
+        
+        window.location.href = `{{ url_for('main.history') }}?${params.toString()}`;
+    }
+
+    async function repeatRoute(routeId) {
+        try {
+            const response = await apiRequest(`/api/history/${routeId}`);
+            
+            if (response.success) {
+                const route = response.route;
+                const params = new URLSearchParams({
+                    origin: route.origin_address,
+                    destination: route.destination_address
+                });
+                
+                window.location.href = `{{ url_for('main.results') }}?${params.toString()}`;
+            }
+        } catch (error) {
+            showAlert('Erreur lors de la répétition du trajet', 'error');
+        }
+    }
+
+    async function viewRouteDetails(routeId) {
+        try {
+            showLoading('Chargement des détails...');
+            
+            const response = await apiRequest(`/api/history/${routeId}`);
+            
+            hideLoading();
+            
+            if (response.success) {
+                const route = response.route;
+                displayRouteDetails(route);
+            }
+        } catch (error) {
+            hideLoading();
+            showAlert('Erreur lors du chargement des détails', 'error');
+        }
+    }
+
+    function displayRouteDetails(route) {
+        const modal = document.getElementById('route-details-modal');
+        const content = document.getElementById('route-details-content');
+        
+        content.innerHTML = `
+            <div class="space-y-6">
+                <!-- Route info -->
+                <div>
+                    <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Informations du trajet</h4>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <div class="text-sm text-gray-600 dark:text-gray-300">Départ</div>
+                                <div class="font-medium text-gray-900 dark:text-white">${route.origin_address}</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-600 dark:text-gray-300">Arrivée</div>
+                                <div class="font-medium text-gray-900 dark:text-white">${route.destination_address}</div>
+                            </div>
+                        </div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">
+                            Recherché ${formatTimeAgo(route.created_at)}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Metrics -->
+                <div>
+                    <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Métriques</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                ${formatDuration(route.travel_time_seconds)}
+                            </div>
+                            <div class="text-sm text-blue-600 dark:text-blue-400">Durée</div>
+                        </div>
+                        <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-green-600 dark:text-green-400">
+                                ${formatDistance(route.distance_meters)}
+                            </div>
+                            <div class="text-sm text-green-600 dark:text-green-400">Distance</div>
+                        </div>
+                        <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                                ${route.optimization_score.toFixed(1)}/10
+                            </div>
+                            <div class="text-sm text-purple-600 dark:text-purple-400">Score</div>
+                        </div>
+                        <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                                ${formatDuration(route.time_saved_seconds)}
+                            </div>
+                            <div class="text-sm text-yellow-600 dark:text-yellow-400">Économisé</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div>
+                    <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Statut</h4>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 ${route.route_started ? 'bg-green-500' : 'bg-gray-300'} rounded-full mr-2"></div>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">Commencé</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 ${route.route_completed ? 'bg-green-500' : 'bg-gray-300'} rounded-full mr-2"></div>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">Terminé</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button onclick="repeatRoute(${route.id})" class="btn-primary flex-1">
+                        <i class="fas fa-redo mr-2"></i>
+                        Refaire ce trajet
+                    </button>
+                    <button onclick="downloadRouteData(${route.id})" class="btn-secondary">
+                        <i class="fas fa-download mr-2"></i>
+                        Télécharger
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeRouteDetails() {
+        document.getElementById('route-details-modal').classList.add('hidden');
+    }
+
+    async function exportHistory() {
+        try {
+            showLoading('Préparation de l\'export...');
+            
+            const response = await apiRequest('/api/history/export', {
+                method: 'POST'
+            });
+            
+            hideLoading();
+            
+            if (response.success) {
+                // Create download link
+                const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `smart-route-history-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showAlert('Historique exporté avec succès', 'success');
+            }
+        } catch (error) {
+            hideLoading();
+            showAlert('Erreur lors de l\'export', 'error');
+        }
+    }
+
+    async function clearHistory() {
+        if (!confirm('Êtes-vous sûr de vouloir effacer tout l\'historique ? Cette action est irréversible.')) {
+            return;
+        }
+
+        try {
+            const response = await apiRequest('/api/history', {
+                method: 'DELETE'
+            });
+
+            if (response.success) {
+                showAlert('Historique effacé avec succès', 'success');
+                window.location.reload();
+            }
+        } catch (error) {
+            showAlert('Erreur lors de l\'effacement', 'error');
+        }
+    }
+
+    function formatTimeAgo(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffTime = Math.abs(now - date);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) return 'hier';
+        if (diffDays < 7) return `il y a ${diffDays} jours`;
+        if (diffDays < 30) return `il y a ${Math.ceil(diffDays / 7)} semaines`;
+        return `il y a ${Math.ceil(diffDays / 30)} mois`;
+    }
+</script>
+{% endblock %}

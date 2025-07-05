@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}{{ app_name }} - Optimisez vos trajets intelligemment{% endblock %}
+
+{% block meta_description %}Trouvez le meilleur itinéraire en temps réel grâce à notre algorithme intelligent d'optimisation du trafic. Économisez du temps sur tous vos trajets.{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="relative overflow-hidden bg-gradient-to-br from-primary-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-purple-900/20">
+    <!-- Background decoration -->
+    <div class="absolute inset-0">
+        <div class="absolute top-0 left-0 w-72 h-72 bg-primary-300/30 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse-soft"></div>
+        <div class="absolute top-0 right-0 w-72 h-72 bg-purple-300/30 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse-soft" style="animation-delay: 1s;"></div>
+        <div class="absolute -bottom-32 left-20 w-72 h-72 bg-yellow-300/30 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse-soft" style="animation-delay: 2s;"></div>
+    </div>
+    
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24">
+        <div class="lg:grid lg:grid-cols-2 lg:gap-12 items-center">
+            <!-- Content -->
+            <div class="text-center lg:text-left">
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 animate-fade-in">
+                    Trouvez le 
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-purple-600">
+                        meilleur
+                    </span>
+                    itinéraire
+                </h1>
+                
+                <p class="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl animate-fade-in" style="animation-delay: 0.2s;">
+                    Notre IA analyse le trafic en temps réel pour vous proposer l'itinéraire optimal. 
+                    Économisez du temps sur tous vos trajets.
+                </p>
+                
+                <!-- Stats -->
+                <div class="grid grid-cols-3 gap-4 mb-8 animate-fade-in" style="animation-delay: 0.4s;">
+                    <div class="text-center">
+                        <div class="text-2xl sm:text-3xl font-bold text-primary-600 dark:text-primary-400">
+                            {{ '{:,}'.format(stats.total_routes).replace(',', ' ') }}
+                        </div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Trajets optimisés</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl sm:text-3xl font-bold text-primary-600 dark:text-primary-400">
+                            {{ stats.total_time_saved_hours }}h
+                        </div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Temps économisé</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl sm:text-3xl font-bold text-primary-600 dark:text-primary-400">
+                            {{ stats.average_score }}/10
+                        </div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Score moyen</div>
+                    </div>
+                </div>
+                
+                <!-- CTA Buttons -->
+                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-fade-in" style="animation-delay: 0.6s;">
+                    <a href="{{ url_for('main.search') }}" 
+                       class="btn-primary text-lg px-8 py-4 group">
+                        <i class="fas fa-route mr-2 group-hover:animate-bounce-soft"></i>
+                        Calculer mon itinéraire
+                        <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </a>
+                    
+                    <button onclick="scrollToDemo()" 
+                            class="btn-secondary text-lg px-8 py-4">
+                        <i class="fas fa-play mr-2"></i>
+                        Voir la démo
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Visual -->
+            <div class="mt-12 lg:mt-0 animate-fade-in" style="animation-delay: 0.8s;">
+                <div class="relative">
+                    <!-- Mock mobile interface -->
+                    <div class="mx-auto w-80 h-96 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border-8 border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <!-- Status bar -->
+                        <div class="bg-gray-900 h-6 flex items-center justify-center">
+                            <div class="w-14 h-1 bg-white rounded-full"></div>
+                        </div>
+                        
+                        <!-- App content -->
+                        <div class="p-4 h-full">
+                            <div class="text-center mb-4">
+                                <h3 class="font-bold text-gray-900 dark:text-white">{{ app_name }}</h3>
+                            </div>
+                            
+                            <!-- Mock search form -->
+                            <div class="space-y-3 mb-4">
+                                <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 flex items-center">
+                                    <div class="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+                                    <span class="text-sm text-gray-600 dark:text-gray-300">Maison</span>
+                                </div>
+                                <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 flex items-center">
+                                    <div class="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
+                                    <span class="text-sm text-gray-600 dark:text-gray-300">Bureau</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Mock route options -->
+                            <div class="space-y-2">
+                                <div class="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-3">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm font-medium text-primary-700 dark:text-primary-300">Route optimale</span>
+                                        <span class="text-xs bg-primary-600 text-white px-2 py-1 rounded">9.2/10</span>
+                                    </div>
+                                    <div class="text-xs text-primary-600 dark:text-primary-400 mt-1">23 min • 12.5 km</div>
+                                </div>
+                                
+                                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-700 dark:text-gray-300">Alternative</span>
+                                        <span class="text-xs bg-gray-500 text-white px-2 py-1 rounded">7.1/10</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">31 min • 15.2 km</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Floating elements -->
+                    <div class="absolute -top-4 -left-4 w-16 h-16 bg-yellow-400 rounded-full flex items-center justify-center animate-bounce-soft">
+                        <i class="fas fa-clock text-yellow-800"></i>
+                    </div>
+                    <div class="absolute -bottom-4 -right-4 w-16 h-16 bg-green-400 rounded-full flex items-center justify-center animate-bounce-soft" style="animation-delay: 0.5s;">
+                        <i class="fas fa-check text-green-800"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section id="features" class="py-24 bg-gray-50 dark:bg-gray-800/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                Pourquoi choisir {{ app_name }} ?
+            </h2>
+            <p class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+                Une technologie de pointe pour optimiser vos déplacements quotidiens
+            </p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Feature 1 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 group">
+                <div class="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <i class="fas fa-brain text-primary-600 dark:text-primary-400 text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Intelligence Artificielle</h3>
+                <p class="text-gray-600 dark:text-gray-300">
+                    Notre algorithme IA analyse en temps réel les conditions de trafic pour vous proposer le meilleur itinéraire.
+                </p>
+            </div>
+            
+            <!-- Feature 2 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 group">
+                <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <i class="fas fa-clock text-green-600 dark:text-green-400 text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Temps Réel</h3>
+                <p class="text-gray-600 dark:text-gray-300">
+                    Données de trafic actualisées en permanence pour des suggestions toujours pertinentes.
+                </p>
+            </div>
+            
+            <!-- Feature 3 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 group">
+                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <i class="fas fa-chart-line text-blue-600 dark:text-blue-400 text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Analytics Avancées</h3>
+                <p class="text-gray-600 dark:text-gray-300">
+                    Suivez vos habitudes de trajet et découvrez des insights pour optimiser vos déplacements.
+                </p>
+            </div>
+            
+            <!-- Feature 4 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 group">
+                <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <i class="fas fa-mobile-alt text-purple-600 dark:text-purple-400 text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Multi-plateforme</h3>
+                <p class="text-gray-600 dark:text-gray-300">
+                    Accessible depuis votre navigateur, responsive et optimisé pour tous vos appareils.
+                </p>
+            </div>
+            
+            <!-- Feature 5 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 group">
+                <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <i class="fas fa-shield-alt text-red-600 dark:text-red-400 text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Sécurisé</h3>
+                <p class="text-gray-600 dark:text-gray-300">
+                    Vos données personnelles sont protégées avec les plus hauts standards de sécurité.
+                </p>
+            </div>
+            
+            <!-- Feature 6 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 group">
+                <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <i class="fas fa-leaf text-yellow-600 dark:text-yellow-400 text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Éco-responsable</h3>
+                <p class="text-gray-600 dark:text-gray-300">
+                    Réduisez votre empreinte carbone en optimisant vos trajets et en évitant les embouteillages.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Demo Section -->
+<section id="demo" class="py-24 bg-white dark:bg-gray-900">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                Essayez dès maintenant
+            </h2>
+            <p class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+                Testez notre service avec une recherche d'itinéraire rapide
+            </p>
+        </div>
+        
+        <!-- Quick search form -->
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-gray-50 dark:bg-gray-800 rounded-2xl p-8 shadow-lg">
+                <form id="quick-search-form" class="space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Origin -->
+                        <div>
+                            <label for="demo-origin" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <i class="fas fa-map-marker-alt text-green-500 mr-2"></i>
+                                Départ
+                            </label>
+                            <input type="text" 
+                                   id="demo-origin" 
+                                   placeholder="Adresse de départ..."
+                                   class="input-field">
+                        </div>
+                        
+                        <!-- Destination -->
+                        <div>
+                            <label for="demo-destination" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <i class="fas fa-flag-checkered text-red-500 mr-2"></i>
+                                Arrivée
+                            </label>
+                            <input type="text" 
+                                   id="demo-destination" 
+                                   placeholder="Adresse d'arrivée..."
+                                   class="input-field">
+                        </div>
+                    </div>
+                    
+                    <!-- Quick options -->
+                    <div class="flex flex-wrap gap-4">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="demo-avoid-tolls" class="checkbox">
+                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Éviter les péages</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="demo-avoid-highways" class="checkbox">
+                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Éviter les autoroutes</span>
+                        </label>
+                    </div>
+                    
+                    <!-- Submit button -->
+                    <div class="text-center">
+                        <button type="submit" class="btn-primary text-lg px-8 py-4 group">
+                            <i class="fas fa-search mr-2"></i>
+                            Calculer l'itinéraire
+                            <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Popular Routes Section -->
+{% if popular_routes %}
+<section class="py-24 bg-gray-50 dark:bg-gray-800/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                Trajets populaires cette semaine
+            </h2>
+            <p class="text-xl text-gray-600 dark:text-gray-300">
+                Découvrez les itinéraires les plus recherchés
+            </p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for route in popular_routes %}
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-gray-900 dark:text-white mb-2">
+                            {{ route.origin_address|truncate(30) }}
+                        </h3>
+                        <div class="flex items-center text-gray-500 dark:text-gray-400 text-sm mb-2">
+                            <i class="fas fa-arrow-down mr-2"></i>
+                        </div>
+                        <h4 class="font-semibold text-gray-900 dark:text-white">
+                            {{ route.destination_address|truncate(30) }}
+                        </h4>
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-between text-sm">
+                    <span class="text-gray-600 dark:text-gray-300">
+                        <i class="fas fa-users mr-1"></i>
+                        {{ route.count }} recherches
+                    </span>
+                    <span class="bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-2 py-1 rounded-full text-xs">
+                        {{ route.avg_score|round(1) }}/10
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- CTA Section -->
+<section class="py-24 bg-gradient-to-r from-primary-600 to-purple-600">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <h2 class="text-3xl sm:text-4xl font-bold text-white mb-6">
+            Prêt à optimiser vos trajets ?
+        </h2>
+        <p class="text-xl text-primary-100 mb-8 max-w-3xl mx-auto">
+            Rejoignez les milliers d'utilisateurs qui économisent du temps chaque jour
+        </p>
+        
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{{ url_for('main.search') }}" 
+               class="bg-white text-primary-600 hover:bg-gray-100 px-8 py-4 rounded-lg font-semibold text-lg transition-colors inline-flex items-center justify-center">
+                Commencer maintenant
+                <i class="fas fa-arrow-right ml-2"></i>
+            </a>
+            
+            {% if not current_user %}
+            <button onclick="openAuthModal()" 
+                    class="border-2 border-white text-white hover:bg-white hover:text-primary-600 px-8 py-4 rounded-lg font-semibold text-lg transition-colors">
+                Créer un compte gratuit
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Quick search form handler
+    document.getElementById('quick-search-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const origin = document.getElementById('demo-origin').value;
+        const destination = document.getElementById('demo-destination').value;
+        
+        if (!origin || !destination) {
+            showAlert('Veuillez saisir une adresse de départ et d\'arrivée', 'warning');
+            return;
+        }
+        
+        // Redirect to search page with parameters
+        const params = new URLSearchParams({
+            origin: origin,
+            destination: destination,
+            avoid_tolls: document.getElementById('demo-avoid-tolls').checked,
+            avoid_highways: document.getElementById('demo-avoid-highways').checked
+        });
+        
+        window.location.href = `{{ url_for('main.results') }}?${params.toString()}`;
+    });
+    
+    // Smooth scroll function
+    function scrollToDemo() {
+        document.getElementById('demo').scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'center'
+        });
+    }
+    
+    // Auto-complete for demo form (basic implementation)
+    const originInput = document.getElementById('demo-origin');
+    const destinationInput = document.getElementById('demo-destination');
+    
+    [originInput, destinationInput].forEach(input => {
+        let timeout;
+        input.addEventListener('input', function() {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                if (this.value.length >= 3) {
+                    // Implement autocomplete logic here
+                    console.log('Autocomplete for:', this.value);
+                }
+            }, 300);
+        });
+    });
+</script>
+{% endblock %}

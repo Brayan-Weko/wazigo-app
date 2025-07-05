@@ -1,0 +1,563 @@
+{% extends "base.html" %}
+
+{% block title %}Recherche d'itinéraire - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                <i class="fas fa-search text-primary-600 mr-3"></i>
+                Recherche d'itinéraire
+            </h1>
+            <p class="text-gray-600 dark:text-gray-300">
+                Trouvez le meilleur chemin pour votre destination
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Search Form -->
+            <div class="lg:col-span-2">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <form id="route-search-form" class="space-y-6">
+                        <!-- Origin & Destination -->
+                        <div class="space-y-4">
+                            <!-- Origin -->
+                            <div class="relative">
+                                <label for="origin" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    <i class="fas fa-map-marker-alt text-green-500 mr-2"></i>
+                                    Point de départ
+                                </label>
+                                <div class="relative">
+                                    <input type="text" 
+                                           id="origin" 
+                                           name="origin"
+                                           value="{{ search_params.origin }}"
+                                           placeholder="Adresse de départ..."
+                                           class="input-field pl-12"
+                                           autocomplete="off"
+                                           required>
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                                    </div>
+                                    <button type="button" 
+                                            id="use-location-btn"
+                                            class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-primary-600 transition-colors"
+                                            title="Utiliser ma position">
+                                        <i class="fas fa-crosshairs"></i>
+                                    </button>
+                                </div>
+                                <div id="origin-suggestions" class="absolute z-10 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 hidden"></div>
+                            </div>
+
+                            <!-- Swap button -->
+                            <div class="flex justify-center">
+                                <button type="button" 
+                                        id="swap-locations"
+                                        class="p-2 text-gray-400 hover:text-primary-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                                        title="Inverser départ et arrivée">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </button>
+                            </div>
+
+                            <!-- Destination -->
+                            <div class="relative">
+                                <label for="destination" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    <i class="fas fa-flag-checkered text-red-500 mr-2"></i>
+                                    Destination
+                                </label>
+                                <div class="relative">
+                                    <input type="text" 
+                                           id="destination" 
+                                           name="destination"
+                                           value="{{ search_params.destination }}"
+                                           placeholder="Adresse d'arrivée..."
+                                           class="input-field pl-12"
+                                           autocomplete="off"
+                                           required>
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                                    </div>
+                                </div>
+                                <div id="destination-suggestions" class="absolute z-10 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 hidden"></div>
+                            </div>
+                        </div>
+
+                        <!-- Departure Time -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label for="departure-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    <i class="fas fa-calendar text-blue-500 mr-2"></i>
+                                    Date de départ
+                                </label>
+                                <input type="date" 
+                                       id="departure-date" 
+                                       name="departure_date"
+                                       class="input-field"
+                                       value="{{ search_params.departure_time.split('T')[0] if search_params.departure_time else '' }}">
+                            </div>
+                            <div>
+                                <label for="departure-time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    <i class="fas fa-clock text-blue-500 mr-2"></i>
+                                    Heure de départ
+                                </label>
+                                <input type="time" 
+                                       id="departure-time" 
+                                       name="departure_time"
+                                       class="input-field"
+                                       value="{{ search_params.departure_time.split('T')[1][:5] if search_params.departure_time else '' }}">
+                            </div>
+                        </div>
+
+                        <!-- Route Options -->
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                                <i class="fas fa-cog mr-2"></i>
+                                Options d'itinéraire
+                            </h3>
+                            
+                            <!-- Route Type -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Type d'itinéraire
+                                </label>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <label class="radio-card {{ 'active' if search_params.route_type == 'fastest' else '' }}">
+                                        <input type="radio" name="route_type" value="fastest" {{ 'checked' if search_params.route_type == 'fastest' else '' }}>
+                                        <div class="radio-card-content">
+                                            <i class="fas fa-tachometer-alt text-yellow-500 mb-2"></i>
+                                            <div class="font-medium">Le plus rapide</div>
+                                            <div class="text-xs text-gray-500">Temps minimal</div>
+                                        </div>
+                                    </label>
+                                    <label class="radio-card {{ 'active' if search_params.route_type == 'shortest' else '' }}">
+                                        <input type="radio" name="route_type" value="shortest" {{ 'checked' if search_params.route_type == 'shortest' else '' }}>
+                                        <div class="radio-card-content">
+                                            <i class="fas fa-ruler text-green-500 mb-2"></i>
+                                            <div class="font-medium">Le plus court</div>
+                                            <div class="text-xs text-gray-500">Distance minimale</div>
+                                        </div>
+                                    </label>
+                                    <label class="radio-card {{ 'active' if search_params.route_type == 'balanced' else '' }}">
+                                        <input type="radio" name="route_type" value="balanced" {{ 'checked' if search_params.route_type == 'balanced' else '' }}>
+                                        <div class="radio-card-content">
+                                            <i class="fas fa-balance-scale text-blue-500 mb-2"></i>
+                                            <div class="font-medium">Équilibré</div>
+                                            <div class="text-xs text-gray-500">Compromis optimal</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Avoidances -->
+                            <div class="space-y-3">
+                                <label class="flex items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
+                                    <input type="checkbox" 
+                                           name="avoid_tolls" 
+                                           class="checkbox"
+                                           {{ 'checked' if search_params.avoid_tolls else '' }}>
+                                    <i class="fas fa-coins text-yellow-500 mx-3"></i>
+                                    <span class="text-gray-700 dark:text-gray-300">Éviter les péages</span>
+                                </label>
+                                
+                                <label class="flex items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
+                                    <input type="checkbox" 
+                                           name="avoid_highways" 
+                                           class="checkbox"
+                                           {{ 'checked' if search_params.avoid_highways else '' }}>
+                                    <i class="fas fa-road text-blue-500 mx-3"></i>
+                                    <span class="text-gray-700 dark:text-gray-300">Éviter les autoroutes</span>
+                                </label>
+                                
+                                <label class="flex items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
+                                    <input type="checkbox" 
+                                           name="avoid_ferries" 
+                                           class="checkbox"
+                                           {{ 'checked' if search_params.avoid_ferries else '' }}>
+                                    <i class="fas fa-ship text-cyan-500 mx-3"></i>
+                                    <span class="text-gray-700 dark:text-gray-300">Éviter les ferries</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="pt-4">
+                            <button type="submit" 
+                                    id="search-btn"
+                                    class="btn-primary w-full text-lg py-4 group">
+                                <span id="search-btn-text">
+                                    <i class="fas fa-search mr-2"></i>
+                                    Calculer l'itinéraire
+                                </span>
+                                <span id="search-btn-loading" class="hidden">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                                    Calcul en cours...
+                                </span>
+                                <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Quick Actions -->
+                {% if current_user %}
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                        <i class="fas fa-bolt text-yellow-500 mr-2"></i>
+                        Actions rapides
+                    </h3>
+                    <div class="space-y-2">
+                        <button onclick="fillFromGeolocation()" 
+                                class="w-full text-left p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-crosshairs text-blue-500 mr-3"></i>
+                            <span class="text-gray-700 dark:text-gray-300">Utiliser ma position</span>
+                        </button>
+                        <button onclick="swapLocations()" 
+                                class="w-full text-left p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-exchange-alt text-green-500 mr-3"></i>
+                            <span class="text-gray-700 dark:text-gray-300">Inverser départ/arrivée</span>
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Saved Routes -->
+                {% if saved_routes %}
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                        <i class="fas fa-star text-yellow-500 mr-2"></i>
+                        Itinéraires favoris
+                    </h3>
+                    <div class="space-y-2">
+                        {% for route in saved_routes %}
+                        <button onclick="loadSavedRoute({{ route.id }})" 
+                                class="w-full text-left p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <div class="font-medium text-gray-900 dark:text-white">{{ route.name }}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400 truncate">
+                                {{ route.origin_address }} → {{ route.destination_address }}
+                            </div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                Utilisé {{ route.usage_count }} fois
+                            </div>
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <a href="{{ url_for('main.settings') }}" 
+                       class="block text-center text-primary-600 dark:text-primary-400 text-sm mt-4 hover:underline">
+                        Gérer mes favoris
+                    </a>
+                </div>
+                {% endif %}
+
+                <!-- Recent Routes -->
+                {% if recent_routes %}
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                        <i class="fas fa-history text-gray-500 mr-2"></i>
+                        Recherches récentes
+                    </h3>
+                    <div class="space-y-2">
+                        {% for route in recent_routes %}
+                        <button onclick="loadRecentRoute('{{ route.origin_address }}', '{{ route.destination_address }}')" 
+                                class="w-full text-left p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <div class="text-sm text-gray-900 dark:text-white truncate">
+                                {{ route.origin_address|truncate(30) }}
+                            </div>
+                            <div class="flex items-center text-gray-400 text-xs my-1">
+                                <i class="fas fa-arrow-down mr-1"></i>
+                            </div>
+                            <div class="text-sm text-gray-900 dark:text-white truncate">
+                                {{ route.destination_address|truncate(30) }}
+                            </div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                {{ route.created_at }}
+                            </div>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Tips -->
+                <div class="bg-gradient-to-br from-primary-50 to-purple-50 dark:from-primary-900/20 dark:to-purple-900/20 rounded-xl p-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                        <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                        Conseils
+                    </h3>
+                    <div class="space-y-3 text-sm text-gray-600 dark:text-gray-300">
+                        <div class="flex items-start">
+                            <i class="fas fa-check text-green-500 mr-2 mt-0.5 flex-shrink-0"></i>
+                            <span>Utilisez des adresses précises pour de meilleurs résultats</span>
+                        </div>
+                        <div class="flex items-start">
+                            <i class="fas fa-check text-green-500 mr-2 mt-0.5 flex-shrink-0"></i>
+                            <span>Planifiez vos trajets en évitant les heures de pointe</span>
+                        </div>
+                        <div class="flex items-start">
+                            <i class="fas fa-check text-green-500 mr-2 mt-0.5 flex-shrink-0"></i>
+                            <span>Sauvegardez vos itinéraires fréquents en favoris</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
+<script>
+    // Initialize search form
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeSearchForm();
+        initializeAutocomplete();
+        initializeGeolocation();
+    });
+
+    function initializeSearchForm() {
+        const form = document.getElementById('route-search-form');
+        const searchBtn = document.getElementById('search-btn');
+        const searchBtnText = document.getElementById('search-btn-text');
+        const searchBtnLoading = document.getElementById('search-btn-loading');
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Validate form
+            const origin = document.getElementById('origin').value.trim();
+            const destination = document.getElementById('destination').value.trim();
+            
+            if (!origin || !destination) {
+                showAlert('Veuillez saisir une adresse de départ et d\'arrivée', 'warning');
+                return;
+            }
+
+            // Show loading state
+            searchBtn.disabled = true;
+            searchBtnText.classList.add('hidden');
+            searchBtnLoading.classList.remove('hidden');
+
+            try {
+                // Prepare form data
+                const formData = new FormData(form);
+                const params = new URLSearchParams();
+                
+                params.append('origin', origin);
+                params.append('destination', destination);
+                
+                if (formData.get('departure_date') && formData.get('departure_time')) {
+                    params.append('departure_time', `${formData.get('departure_date')}T${formData.get('departure_time')}`);
+                }
+                
+                params.append('route_type', formData.get('route_type') || 'fastest');
+                params.append('avoid_tolls', formData.get('avoid_tolls') === 'on');
+                params.append('avoid_highways', formData.get('avoid_highways') === 'on');
+                params.append('avoid_ferries', formData.get('avoid_ferries') === 'on');
+
+                // Redirect to results page
+                window.location.href = `{{ url_for('main.results') }}?${params.toString()}`;
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                showAlert('Erreur lors de la recherche. Veuillez réessayer.', 'error');
+                
+                // Reset button state
+                searchBtn.disabled = false;
+                searchBtnText.classList.remove('hidden');
+                searchBtnLoading.classList.add('hidden');
+            }
+        });
+    }
+
+    function initializeAutocomplete() {
+        const originInput = document.getElementById('origin');
+        const destinationInput = document.getElementById('destination');
+        
+        setupAutocomplete(originInput, 'origin-suggestions');
+        setupAutocomplete(destinationInput, 'destination-suggestions');
+    }
+
+    function setupAutocomplete(input, suggestionsId) {
+        let timeout;
+        const suggestionsContainer = document.getElementById(suggestionsId);
+        
+        input.addEventListener('input', function() {
+            clearTimeout(timeout);
+            const query = this.value.trim();
+            
+            if (query.length < 3) {
+                suggestionsContainer.classList.add('hidden');
+                return;
+            }
+            
+            timeout = setTimeout(() => {
+                fetchAddressSuggestions(query, suggestionsContainer, input);
+            }, 300);
+        });
+        
+        input.addEventListener('blur', function() {
+            // Delay hiding to allow click on suggestions
+            setTimeout(() => {
+                suggestionsContainer.classList.add('hidden');
+            }, 150);
+        });
+    }
+
+    async function fetchAddressSuggestions(query, container, input) {
+        try {
+            const response = await fetch('/api/autocomplete?' + new URLSearchParams({
+                q: query
+            }));
+            
+            const data = await response.json();
+            
+            if (data.success && data.suggestions.length > 0) {
+                displaySuggestions(data.suggestions, container, input);
+            } else {
+                container.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('Autocomplete error:', error);
+            container.classList.add('hidden');
+        }
+    }
+
+    function displaySuggestions(suggestions, container, input) {
+        container.innerHTML = '';
+        
+        suggestions.forEach(suggestion => {
+            const item = document.createElement('div');
+            item.className = 'px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-600 last:border-b-0';
+            item.innerHTML = `
+                <div class="font-medium text-gray-900 dark:text-white">${suggestion.title}</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">${suggestion.label}</div>
+            `;
+            
+            item.addEventListener('click', function() {
+                input.value = suggestion.title;
+                container.classList.add('hidden');
+            });
+            
+            container.appendChild(item);
+        });
+        
+        container.classList.remove('hidden');
+    }
+
+    function initializeGeolocation() {
+        const useLocationBtn = document.getElementById('use-location-btn');
+        const swapBtn = document.getElementById('swap-locations');
+        
+        useLocationBtn.addEventListener('click', fillFromGeolocation);
+        swapBtn.addEventListener('click', swapLocations);
+    }
+
+    function fillFromGeolocation() {
+        if (!navigator.geolocation) {
+            showAlert('La géolocalisation n\'est pas supportée par votre navigateur', 'error');
+            return;
+        }
+        
+        showAlert('Récupération de votre position...', 'info');
+        
+        navigator.geolocation.getCurrentPosition(
+            async function(position) {
+                const { latitude, longitude } = position.coords;
+                
+                try {
+                    const response = await fetch('/maps/reverse-geocode', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            lat: latitude,
+                            lng: longitude
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success && data.address) {
+                        document.getElementById('origin').value = data.address.title || data.address.label;
+                        showAlert('Position détectée avec succès', 'success');
+                    } else {
+                        showAlert('Impossible de déterminer votre adresse', 'error');
+                    }
+                } catch (error) {
+                    console.error('Reverse geocoding error:', error);
+                    showAlert('Erreur lors de la détection de l\'adresse', 'error');
+                }
+            },
+            function(error) {
+                let message = 'Erreur de géolocalisation';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        message = 'Accès à la géolocalisation refusé';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        message = 'Position non disponible';
+                        break;
+                    case error.TIMEOUT:
+                        message = 'Délai d\'attente dépassé';
+                        break;
+                }
+                showAlert(message, 'error');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 300000
+            }
+        );
+    }
+
+    function swapLocations() {
+        const originInput = document.getElementById('origin');
+        const destinationInput = document.getElementById('destination');
+        
+        const tempValue = originInput.value;
+        originInput.value = destinationInput.value;
+        destinationInput.value = tempValue;
+        
+        // Add animation effect
+        [originInput, destinationInput].forEach(input => {
+            input.classList.add('bg-primary-50', 'dark:bg-primary-900/20');
+            setTimeout(() => {
+                input.classList.remove('bg-primary-50', 'dark:bg-primary-900/20');
+            }, 500);
+        });
+    }
+
+    function loadSavedRoute(routeId) {
+        // This would typically fetch route details via API
+        fetch(`/api/saved-routes/${routeId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const route = data.route;
+                    document.getElementById('origin').value = route.coordinates.origin.address;
+                    document.getElementById('destination').value = route.coordinates.destination.address;
+                    
+                    showAlert(`Itinéraire "${route.name}" chargé`, 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading saved route:', error);
+                showAlert('Erreur lors du chargement de l\'itinéraire', 'error');
+            });
+    }
+
+    function loadRecentRoute(origin, destination) {
+        document.getElementById('origin').value = origin;
+        document.getElementById('destination').value = destination;
+        
+        showAlert('Recherche récente chargée', 'success');
+    }
+</script>
+{% endblock %}

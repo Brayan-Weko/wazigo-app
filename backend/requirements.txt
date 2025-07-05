@@ -1,0 +1,47 @@
+# Framework web
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Flask-Session==0.5.0
+Werkzeug==2.3.7
+
+# Base de données
+PyMySQL==1.1.0
+SQLAlchemy==2.0.23
+
+# Authentification
+google-auth==2.23.3
+google-auth-oauthlib==1.1.0
+google-auth-httplib2==0.1.1
+
+# API et HTTP
+requests==2.31.0
+urllib3==2.0.7
+
+# Cache et sessions
+redis==4.6.0
+Flask-Caching==2.1.0
+
+# Configuration et environnement
+python-dotenv==1.0.0
+
+# Planification et tâches
+APScheduler==3.10.4
+
+# Utilitaires
+python-dateutil==2.8.2
+pytz==2023.3
+
+# Sécurité
+itsdangerous==2.1.2
+
+# Serveur de production
+gunicorn==21.2.0
+
+
+
+# Tests (optionnel)
+pytest==7.4.3
+pytest-flask==1.3.0
+
+# Développement (optionnel)
+Flask-DebugToolbar==0.13.1

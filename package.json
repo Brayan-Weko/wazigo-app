@@ -1,0 +1,23 @@
+{
+  "name": "smart-route-app",
+  "version": "1.0.0",
+  "description": "Application intelligente d'optimisation d'itinéraires utilisant l'IA pour analyser le trafic en temps réel",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npx tailwindcss -i ./frontend/static/css/style.css -o ./frontend/static/dist/css/style.css --minify",
+    "watch": "tailwindcss -i ./frontend/static/css/style.css -o ./frontend/static/dist/css/style.css --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.11",
+    "caniuse-lite": "^1.0.30001726",
+    "tailwindcss": "^3.3.3"
+  }
+}

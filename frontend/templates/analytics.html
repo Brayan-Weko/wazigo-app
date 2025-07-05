@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                <i class="fas fa-chart-line text-primary-600 mr-3"></i>
+                Analytics & Statistiques
+            </h1>
+            <p class="text-gray-600 dark:text-gray-300">
+                Analysez vos habitudes de trajet et optimisez vos déplacements
+            </p>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-route text-blue-600 dark:text-blue-400 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <div class="text-sm text-gray-600 dark:text-gray-300">Trajets totaux</div>
+                        <div class="text-2xl font-bold text-gray-900 dark:text-white" id="total-routes">
+                            {{ analytics_data.summary.total_routes_searched or 0 }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-clock text-green-600 dark:text-green-400 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <div class="text-sm text-gray-600 dark:text-gray-300">Temps économisé</div>
+                        <div class="text-2xl font-bold text-gray-900 dark:text-white" id="time-saved">
+                            {{ (analytics_data.summary.total_time_saved_minutes // 60) or 0 }}h
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-road text-purple-600 dark:text-purple-400 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <div class="text-sm text-gray-600 dark:text-gray-300">Distance totale</div>
+                        <div class="text-2xl font-bold text-gray-900 dark:text-white" id="total-distance">
+                            {{ analytics_data.summary.total_distance_km|round(0)|int or 0 }}km
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-star text-yellow-600 dark:text-yellow-400 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <div class="text-sm text-gray-600 dark:text-gray-300">Score moyen</div>
+                        <div class="text-2xl font-bold text-gray-900 dark:text-white" id="avg-score">
+                            {{ analytics_data.summary.average_optimization_score|round(1) or 0 }}/10
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Activity Chart -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-chart-bar text-primary-600 mr-2"></i>
+                    Activité mensuelle
+                </h3>
+                <div class="h-64" id="activity-chart">
+                    <canvas id="activity-canvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Efficiency Score -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-gauge-high text-primary-600 mr-2"></i>
+                    Score d'efficacité
+                </h3>
+                <div class="text-center">
+                    <div class="relative w-32 h-32 mx-auto mb-4">
+                        <svg class="w-32 h-32 transform -rotate-90" viewBox="0 0 128 128">
+                            <circle cx="64" cy="64" r="56" stroke="currentColor" stroke-width="8" 
+                                    class="text-gray-200 dark:text-gray-700" fill="none"/>
+                            <circle cx="64" cy="64" r="56" stroke="currentColor" stroke-width="8" 
+                                    class="text-primary-600" fill="none" stroke-linecap="round"
+                                    stroke-dasharray="351.86" 
+                                    stroke-dashoffset="{{ 351.86 - (351.86 * (analytics_data.summary.efficiency_score or 0) / 100) }}"
+                                    id="efficiency-circle"/>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span class="text-2xl font-bold text-gray-900 dark:text-white" id="efficiency-score">
+                                {{ analytics_data.summary.efficiency_score or 0 }}%
+                            </span>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        {{ "Excellent" if (analytics_data.summary.efficiency_score or 0) >= 80 else
+                           "Bon" if (analytics_data.summary.efficiency_score or 0) >= 60 else
+                           "Moyen" if (analytics_data.summary.efficiency_score or 0) >= 40 else
+                           "À améliorer" }} score d'optimisation
+                    </p>
+                </div>
+            </div>
+
+            <!-- Weekly Stats -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-calendar-week text-primary-600 mr-2"></i>
+                    Cette semaine
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600 dark:text-gray-300">Trajets calculés</span>
+                        <span class="font-semibold text-gray-900 dark:text-white">
+                            {{ analytics_data.weekly_stats.routes_count or 0 }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600 dark:text-gray-300">Temps économisé</span>
+                        <span class="font-semibold text-gray-900 dark:text-white">
+                            {{ analytics_data.weekly_stats.time_saved_minutes or 0 }}min
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600 dark:text-gray-300">Distance parcourue</span>
+                        <span class="font-semibold text-gray-900 dark:text-white">
+                            {{ analytics_data.weekly_stats.distance_km or 0 }}km
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600 dark:text-gray-300">Score moyen</span>
+                        <span class="font-semibold text-gray-900 dark:text-white">
+                            {{ analytics_data.weekly_stats.average_score or 0 }}/10
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Peak Hours -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-clock text-primary-600 mr-2"></i>
+                    Heures de pointe personnelles
+                </h3>
+                <div class="grid grid-cols-4 gap-2">
+                    {% for hour in range(24) %}
+                    <div class="text-center p-2 rounded-lg {{ 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' if hour|string in (analytics_data.summary.peak_hours or []) else 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400' }}">
+                        <div class="text-xs font-medium">{{ '%02d'|format(hour) }}h</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mt-3">
+                    {% if analytics_data.summary.peak_hours %}
+                        Vous recherchez principalement des itinéraires entre {{ analytics_data.summary.peak_hours|join('h, ') }}h
+                    {% else %}
+                        Pas assez de données pour déterminer vos heures de pointe
+                    {% endif %}
+                </p>
+            </div>
+
+            <!-- Most Used Routes -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 lg:col-span-2">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-route text-primary-600 mr-2"></i>
+                    Trajets les plus fréquents
+                </h3>
+                <div class="space-y-3">
+                    {% if analytics_data.summary.most_used_origin and analytics_data.summary.most_used_destination %}
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <div class="font-medium text-gray-900 dark:text-white">
+                                    {{ analytics_data.summary.most_used_origin|truncate(40) }}
+                                </div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400 my-1">
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                                <div class="font-medium text-gray-900 dark:text-white">
+                                    {{ analytics_data.summary.most_used_destination|truncate(40) }}
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300 ml-4">
+                                Trajet principal
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-route text-4xl mb-4"></i>
+                        <p>Effectuez plus de recherches pour voir vos trajets fréquents</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Environmental Impact -->
+            <div class="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl shadow-lg p-6 lg:col-span-2">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-leaf text-green-600 mr-2"></i>
+                    Impact environnemental
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
+                            {{ ((analytics_data.summary.total_distance_km or 0) * 0.07 * 2.31)|round(1) }}kg
+                        </div>
+                        <div class="text-sm text-gray-600 dark:text-gray-300">CO₂ émis</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
+                            {{ ((analytics_data.summary.total_distance_km or 0) * 0.07)|round(1) }}L
+                        </div>
+                        <div class="text-sm text-gray-600 dark:text-gray-300">Carburant consommé</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
+                            {{ ((analytics_data.summary.total_time_saved_minutes or 0) * 0.2)|round(1) }}kg
+                        </div>
+                        <div class="text-sm text-gray-600 dark:text-gray-300">CO₂ économisé</div>
+                    </div>
+                </div>
+                <div class="mt-4 p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <p class="text-sm text-green-800 dark:text-green-200">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        En évitant les embouteillages, vous réduisez votre empreinte carbone !
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                Recommandations personnalisées
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="recommendations">
+                <!-- Recommendations will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeAnalytics();
+        generateRecommendations();
+    });
+
+    function initializeAnalytics() {
+        // Create activity chart
+        createActivityChart();
+        
+        // Animate efficiency score
+        animateEfficiencyScore();
+    }
+
+    function createActivityChart() {
+        const ctx = document.getElementById('activity-canvas').getContext('2d');
+        const monthlyData = {{ analytics_data.monthly_trends|tojson if analytics_data.monthly_trends else '[]' }};
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: monthlyData.map(d => d.month),
+                datasets: [
+                    {
+                        label: 'Trajets',
+                        data: monthlyData.map(d => d.routes_count),
+                        borderColor: '#5D5CDE',
+                        backgroundColor: 'rgba(93, 92, 222, 0.1)',
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Temps économisé (min)',
+                        data: monthlyData.map(d => d.time_saved_minutes),
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        grid: {
+                            color: document.documentElement.classList.contains('dark') ? '#374151' : '#E5E7EB'
+                        },
+                        ticks: {
+                            color: document.documentElement.classList.contains('dark') ? '#9CA3AF' : '#6B7280'
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        grid: {
+                            color: document.documentElement.classList.contains('dark') ? '#374151' : '#E5E7EB'
+                        },
+                        ticks: {
+                            color: document.documentElement.classList.contains('dark') ? '#9CA3AF' : '#6B7280'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                        ticks: {
+                            color: document.documentElement.classList.contains('dark') ? '#9CA3AF' : '#6B7280'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: document.documentElement.classList.contains('dark') ? '#F3F4F6' : '#1F2937'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function animateEfficiencyScore() {
+        const circle = document.getElementById('efficiency-circle');
+        const scoreElement = document.getElementById('efficiency-score');
+        const targetScore = {{ analytics_data.summary.efficiency_score or 0 }};
+        
+        let currentScore = 0;
+        const duration = 2000; // 2 seconds
+        const interval = 16; // ~60fps
+        const increment = targetScore / (duration / interval);
+        
+        const animation = setInterval(() => {
+            currentScore += increment;
+            if (currentScore >= targetScore) {
+                currentScore = targetScore;
+                clearInterval(animation);
+            }
+            
+            const circumference = 351.86;
+            const offset = circumference - (circumference * currentScore / 100);
+            circle.style.strokeDashoffset = offset;
+            scoreElement.textContent = Math.round(currentScore) + '%';
+        }, interval);
+    }
+
+    function generateRecommendations() {
+        const container = document.getElementById('recommendations');
+        const analytics = {{ analytics_data.summary|tojson if analytics_data.summary else '{}' }};
+        const recommendations = [];
+
+        // Generate recommendations based on user data
+        if (analytics.total_routes_searched > 0) {
+            if (analytics.average_optimization_score < 7) {
+                recommendations.push({
+                    icon: 'fa-route',
+                    title: 'Optimisez vos horaires',
+                    description: 'Essayez de partir 30 minutes plus tôt ou plus tard pour éviter les embouteillages.',
+                    color: 'blue'
+                });
+            }
+
+            if (analytics.peak_hours && analytics.peak_hours.length > 0) {
+                recommendations.push({
+                    icon: 'fa-clock',
+                    title: 'Flexibilité horaire',
+                    description: 'Vous voyagez souvent aux heures de pointe. Considérez le télétravail ou des horaires flexibles.',
+                    color: 'yellow'
+                });
+            }
+
+            if (analytics.total_distance_km > 1000) {
+                recommendations.push({
+                    icon: 'fa-leaf',
+                    title: 'Transport alternatif',
+                    description: 'Pour les courtes distances, pensez aux transports en commun ou au vélo.',
+                    color: 'green'
+                });
+            }
+        } else {
+            recommendations.push({
+                icon: 'fa-search',
+                title: 'Commencez à optimiser',
+                description: 'Utilisez notre service pour tous vos trajets quotidiens et découvrez les économies possibles.',
+                color: 'primary'
+            });
+        }
+
+        // Render recommendations
+        container.innerHTML = recommendations.map(rec => `
+            <div class="bg-${rec.color === 'primary' ? 'primary' : rec.color}-50 dark:bg-${rec.color === 'primary' ? 'primary' : rec.color}-900/20 border border-${rec.color === 'primary' ? 'primary' : rec.color}-200 dark:border-${rec.color === 'primary' ? 'primary' : rec.color}-800 rounded-lg p-4">
+                <div class="flex items-start">
+                    <div class="w-8 h-8 bg-${rec.color === 'primary' ? 'primary' : rec.color}-100 dark:bg-${rec.color === 'primary' ? 'primary' : rec.color}-900/30 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                        <i class="fas ${rec.icon} text-${rec.color === 'primary' ? 'primary' : rec.color}-600 dark:text-${rec.color === 'primary' ? 'primary' : rec.color}-400"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-${rec.color === 'primary' ? 'primary' : rec.color}-900 dark:text-${rec.color === 'primary' ? 'primary' : rec.color}-100 mb-1">
+                            ${rec.title}
+                        </h4>
+                        <p class="text-sm text-${rec.color === 'primary' ? 'primary' : rec.color}-700 dark:text-${rec.color === 'primary' ? 'primary' : rec.color}-300">
+                            ${rec.description}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+</script>
+{% endblock %}
