@@ -9,6 +9,7 @@ import uuid
 from .utils import configure_utils
 from .config import config
 from .extensions import db, sess
+from .models.subscription import initialize_subscription_system
 
 def create_app(config_name=None):
     """Factory pour créer l'application Flask"""
@@ -73,16 +74,18 @@ def register_blueprints(app):
     """Enregistrement des blueprints"""
     
     # Import des routes
-    from routes.main import main_bp
-    from routes.auth import auth_bp
-    from routes.api import api_bp
-    from routes.maps import maps_bp
+    from backend.routes.main import main_bp
+    from backend.routes.auth import auth_bp
+    from backend.routes.api import api_bp
+    from backend.routes.maps import maps_bp
+    #from backend.routes.subscription import subscription_bp
     
     # Enregistrement
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(maps_bp, url_prefix='/maps')
+    #app.register_blueprint(subscription_bp, url_prefix='/api/subscription')
 
 def register_error_handlers(app):
     """Gestionnaires d'erreurs personnalisés"""
@@ -186,6 +189,11 @@ if __name__ == '__main__':
     # Créer les tables si elles n'existent pas
     with app.app_context():
         db.create_all()
+        success = initialize_subscription_system()
+        if success:
+            print("🎉 Système d'abonnement prêt !")
+        else:
+            print("❌ Échec de l'initialisation")
     
     # Lancer l'application
     app.run(host='0.0.0.0', port=5000, debug=True)

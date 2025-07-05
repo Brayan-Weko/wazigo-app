@@ -8,6 +8,7 @@ from .route import SavedRoute
 from .history import RouteHistory
 from .analytics import UserAnalytics
 from .additional import GuestSession, Feedback
+from .subscription import SubscriptionPlan, UserSubscription, Advertisement
 
 # Export des modèles
 __all__ = [
@@ -19,7 +20,10 @@ __all__ = [
     'RouteHistory',
     'UserAnalytics',
     'GuestSession',
-    'Feedback'
+    'Feedback',
+    'SubscriptionPlan',
+    'UserSubscription',
+    'Advertisement'
 ]
 
 # Fonction utilitaire pour créer toutes les tables

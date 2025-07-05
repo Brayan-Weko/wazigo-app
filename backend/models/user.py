@@ -27,6 +27,7 @@ class User(DatabaseMixin, db.Model):
     route_history = db.relationship('RouteHistory', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     analytics = db.relationship('UserAnalytics', backref='user', uselist=False, cascade='all, delete-orphan')
     feedback = db.relationship('Feedback', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    subscription = db.relationship('UserSubscription', back_populates='user', uselist=False, cascade='all, delete-orphan')
     
     def __init__(self, email, name, google_id=None, avatar_url=None):
         self.email = email
@@ -123,14 +124,79 @@ class User(DatabaseMixin, db.Model):
             return analytics
         return self.analytics
     
-    def to_dict(self, include_sensitive=False):
-        """Convertir en dictionnaire avec options de sécurité"""
+    @property
+    def subscription_type(self):
+        """Type d'abonnement actuel."""
+        if self.subscription and self.subscription.is_active:
+            return self.subscription.plan.name
+        return 'free'
+
+    @property
+    def is_premium(self):
+        """Vérifier si l'utilisateur est premium."""
+        return self.subscription_type == 'premium'
+
+    @property
+    def subscription_status(self):
+        """Statut détaillé de l'abonnement."""
+        if not self.subscription:
+            return {
+                'type': 'free',
+                'active': True,
+                'expires_at': None,
+                'days_remaining': None
+            }
+        
+        return {
+            'type': self.subscription.plan.name,
+            'active': self.subscription.is_active,
+            'expires_at': self.subscription.expires_at,
+            'days_remaining': self.subscription.days_remaining
+        }
+
+    def can_access_feature(self, feature):
+        """Vérifier l'accès à une fonctionnalité."""
+        if not self.subscription or not self.subscription.is_active:
+            return False
+        return getattr(self.subscription.plan, f'has_{feature}', False)
+
+    def get_subscription_limits(self):
+        """Récupérer les limites de l'abonnement."""
+        if self.subscription and self.subscription.is_active:
+            plan = self.subscription.plan
+            return {
+                'traffic_radius_km': plan.traffic_radius_km,
+                'countries_access': plan.countries_access,
+                'daily_searches': plan.daily_searches,
+                'daily_searches_used': self.subscription.daily_searches_used,
+                'has_ads': plan.has_ads
+            }
+        
+        # Limites par défaut pour utilisateur gratuit
+        return {
+            'traffic_radius_km': 45,
+            'countries_access': 1,
+            'daily_searches': 50,
+            'daily_searches_used': 0,
+            'has_ads': True
+        }
+
+    def can_search(self):
+        """Vérifier si l'utilisateur peut effectuer une recherche."""
+        if self.subscription and self.subscription.is_active:
+            return self.subscription.can_search()
+        return True  # Utilisateurs gratuits peuvent rechercher (avec limites)
+
+    def to_dict(self, include_sensitive=False, include_subscription=False):
+        """Convertir en dictionnaire avec options de sécurité et abonnement."""
         data = {
             'id': self.id,
             'name': self.name,
             'avatar_url': self.avatar_url,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_activity': self.last_activity.isoformat() if self.last_activity else None
+            'last_activity': self.last_activity.isoformat() if self.last_activity else None,
+            'subscription_type': self.subscription_type,
+            'is_premium': self.is_premium
         }
         
         if include_sensitive:
@@ -139,6 +205,13 @@ class User(DatabaseMixin, db.Model):
                 'google_id': self.google_id,
                 'preferences': self.preferences,
                 'is_active': self.is_active
+            })
+        
+        if include_subscription:
+            data.update({
+                'subscription': self.subscription.to_dict() if self.subscription else None,
+                'subscription_status': self.subscription_status,
+                'subscription_limits': self.get_subscription_limits()
             })
         
         return data
