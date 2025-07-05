@@ -1,4 +1,4 @@
-/** @type {import('tailwindcss').Config} */
+/** @type {import('tailwindcss').Config} */ 
 module.exports = {
     content: [
         "./frontend/templates/**/*.html",
@@ -9,17 +9,17 @@ module.exports = {
         extend: {
             colors: {
                 primary: {
-                    DEFAULT: '#5D5CDE',
-                    50: '#F5F5FF',
-                    100: '#EBEBFF',
-                    200: '#D6D6FF',
-                    300: '#C2C1FF',
-                    400: '#9D9CFF',
-                    500: '#5D5CDE',
-                    600: '#4F4ECB',
-                    700: '#4240B8',
-                    800: '#3532A5',
-                    900: '#282692'
+                    DEFAULT: '#6ee7b7', // Vert moyen (forme principale) - Green Apple
+                    50: '#e6fff8',      // Fond (menthe pâle) - Light Mint
+                    100: '#98f5e1',     // Vert clair (route - "W") - Seafoam
+                    200: '#6ee7b7',     // Vert moyen
+                    300: '#47d6aa',
+                    400: '#28c795',
+                    500: '#10b981',
+                    600: '#059669',
+                    700: '#047857',     // Vert foncé (pin) - Deep Teal
+                    800: '#065f46',     // Texte vert foncé (WaziGo) - Pine Green
+                    900: '#064e3b'
                 },
                 gray: {
                     50: '#F9FAFB',
