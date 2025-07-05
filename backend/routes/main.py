@@ -1,3 +1,5 @@
+from datetime import datetime
+from sqlalchemy import text
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
 from backend.models import User, SavedRoute, RouteHistory, UserAnalytics, db
 from backend.services.route_optimizer import RouteOptimizer
@@ -251,17 +253,19 @@ def health_check():
     """Endpoint de vérification de santé de l'application"""
     try:
         # Vérifier la connexion à la base de données
-        db.session.execute('SELECT 1')
+        db.session.execute(text('SELECT 1'))
         
         return jsonify({
             'status': 'healthy',
-            'timestamp': db.func.now(),
-            'version': '1.0.0'
+            'timestamp': datetime.utcnow().isoformat(),
+            'version': '1.0.0',
+            'database': 'connected'
         }), 200
     except Exception as e:
         return jsonify({
             'status': 'unhealthy',
-            'error': str(e)
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
         }), 503
 
 @main_bp.route('/privacy')

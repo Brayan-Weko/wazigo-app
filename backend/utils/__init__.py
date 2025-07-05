@@ -230,7 +230,7 @@ def configure_utils(app):
     
     # Configuration du logging pour les erreurs
     if utils_config.get('error_handling', {}).get('log_all_errors', True):
-        app.logger.info("✅ Gestionnaires d'erreurs configurés")
+        print("✅ Gestionnaires d'erreurs configurés")
     
     # Ajouter les filtres Jinja2 utiles
     @app.template_filter('format_duration')
@@ -253,7 +253,7 @@ def configure_utils(app):
     def jinja_truncate_smart(text, length=100):
         return truncate_text(text, length) if text else ''
     
-    app.logger.info("✅ Utilitaires configurés avec succès")
+    print("✅ Utilitaires configurés avec succès")
     
     return utils_config
 

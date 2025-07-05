@@ -42,6 +42,11 @@ class Config:
     GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
     GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid_configuration"
     GOOGLE_AUTH_USE_HTTPS = False
+    GOOGLE_OAUTH_REDIRECT_URI = 'http://localhost:5000/auth/callback'
+    GOOGLE_OAUTH_ALLOWED_ORIGINS = [
+        'http://localhost:5000',
+        'http://127.0.0.1:5000'
+    ]
     
     # Configuration session
     SESSION_TYPE = 'filesystem'
