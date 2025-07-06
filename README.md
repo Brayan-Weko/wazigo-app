@@ -1,4 +1,4 @@
-smart-route-app/
+wazigo-app/
 │
 ├── 📁 backend/
 │   ├── 📄 app.py                    # Application Flask principale
