@@ -134,9 +134,25 @@ def run_mobile_app():
 
 if __name__ == '__main__':
     # Configuration pour le développement
-     
+    
+    # Définir le répertoire de base pour vos images statiques
+    image_dir = os.path.join(os.path.dirname(__file__), 'frontend', 'static', 'images')
+
+    # Définir les noms de fichiers possibles pour l'icône avec différentes extensions
+    possible_icons = ['favicon.jpg', 'favicon.png', 'favicon.jpeg']
+
+    icon_jpg_path = None
+    for icon_name in possible_icons:
+        full_path = os.path.join(image_dir, icon_name)
+        if os.path.exists(full_path):
+            icon_jpg_path = full_path
+            break
+
     # Chemin vers l'icône original
-    icon_jpg_path = os.path.join(os.path.dirname(__file__), 'frontend', 'static', 'images', 'favicon.jpg')
+    if icon_jpg_path:
+        print(f"Utilisation de l'icône depuis : {icon_jpg_path}")
+    else:
+        print("Icône non trouvée avec les extensions .jpg, .png ou .jpeg.")
     
     # Convertir en .ico automatiquement
     icon_path = convert_to_ico(icon_jpg_path)
