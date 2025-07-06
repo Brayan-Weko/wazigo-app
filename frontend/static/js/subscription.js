@@ -29,10 +29,10 @@ class SubscriptionManager {
 
         modal.innerHTML = `
             <div class="modal-content max-w-4xl w-full mx-4">
-                <div class="bg-gradient-to-br from-purple-600 to-pink-600 text-white p-6 rounded-t-xl">
+                <div class="bg-gradient-to-br from-primary-600 to-green-800 text-white p-6 rounded-t-xl">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h2 class="text-2xl font-bold">👑 Passez au Premium</h2>
+                            <h2 class="text-2xl font-bold"><i class="fas fa-crown text-yellow-400"></i> Passez au Premium</h2>
                             <p class="text-purple-100 mt-1">Débloquez toutes les fonctionnalités avancées</p>
                         </div>
                         <button onclick="closeUpgradeModal()" class="text-white/80 hover:text-white">
@@ -57,30 +57,30 @@ class SubscriptionManager {
                                             <div class="text-gray-600 dark:text-gray-300">Gratuit</div>
                                         </th>
                                         <th class="text-center py-3 px-4">
-                                            <div class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1 rounded-full text-xs font-medium">
-                                                👑 Premium
+                                            <div class="bg-gradient-to-r from-primary-500 to-green-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+                                                <i class="fas fa-crown text-yellow-400 mr-1"></i> Premium
                                             </div>
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody class="text-gray-700 dark:text-gray-300">
                                     <tr class="border-b border-gray-100 dark:border-gray-800">
-                                        <td class="py-3 px-4">🗺️ Carte trafic</td>
+                                        <td class="py-3 px-4"><i class="fas fa-map-marked-alt text-blue-500 mr-1"></i> Carte trafic</td>
                                         <td class="text-center py-3 px-4">45km de rayon</td>
                                         <td class="text-center py-3 px-4 text-green-600 dark:text-green-400 font-medium">Illimitée</td>
                                     </tr>
                                     <tr class="border-b border-gray-100 dark:border-gray-800">
-                                        <td class="py-3 px-4">🌍 Accès pays</td>
+                                        <td class="py-3 px-4"><i class="fas fa-globe-americas text-green-500 mr-1"></i> Accès pays</td>
                                         <td class="text-center py-3 px-4">1 pays</td>
                                         <td class="text-center py-3 px-4 text-green-600 dark:text-green-400 font-medium">Monde entier</td>
                                     </tr>
                                     <tr class="border-b border-gray-100 dark:border-gray-800">
-                                        <td class="py-3 px-4">🔍 Recherches quotidiennes</td>
+                                        <td class="py-3 px-4"><i class="fas fa-search text-purple-500 mr-1"></i> Recherches quotidiennes</td>
                                         <td class="text-center py-3 px-4">50 / jour</td>
                                         <td class="text-center py-3 px-4 text-green-600 dark:text-green-400 font-medium">Illimitées</td>
                                     </tr>
                                     <tr class="border-b border-gray-100 dark:border-gray-800">
-                                        <td class="py-3 px-4">📢 Publicités</td>
+                                        <td class="py-3 px-4"><i class="fas fa-ad text-orange-500 mr-1"></i> Publicités</td>
                                         <td class="text-center py-3 px-4">
                                             <i class="fas fa-times text-red-500"></i>
                                         </td>
@@ -89,22 +89,22 @@ class SubscriptionManager {
                                         </td>
                                     </tr>
                                     <tr class="border-b border-gray-100 dark:border-gray-800">
-                                        <td class="py-3 px-4">🔊 Alertes vocales</td>
+                                        <td class="py-3 px-4"><i class="fas fa-bell text-red-500 mr-1"></i> Alertes vocales</td>
                                         <td class="text-center py-3 px-4">Basiques</td>
                                         <td class="text-center py-3 px-4 text-green-600 dark:text-green-400 font-medium">Avancées</td>
                                     </tr>
                                     <tr class="border-b border-gray-100 dark:border-gray-800">
-                                        <td class="py-3 px-4">🛣️ Types d'itinéraires</td>
+                                        <td class="py-3 px-4"><i class="fas fa-route text-indigo-500 mr-1"></i> Types d'itinéraires</td>
                                         <td class="text-center py-3 px-4">Standard</td>
                                         <td class="text-center py-3 px-4 text-green-600 dark:text-green-400 font-medium">+ Éco, Panoramique</td>
                                     </tr>
                                     <tr class="border-b border-gray-100 dark:border-gray-800">
-                                        <td class="py-3 px-4">📱 Mode hors ligne</td>
+                                        <td class="py-3 px-4"><i class="fas fa-wifi text-gray-500 mr-1"></i> Mode hors ligne</td>
                                         <td class="text-center py-3 px-4">Basique</td>
                                         <td class="text-center py-3 px-4 text-green-600 dark:text-green-400 font-medium">Avancé</td>
                                     </tr>
                                     <tr>
-                                        <td class="py-3 px-4">🎯 Support prioritaire</td>
+                                        <td class="py-3 px-4"><i class="fas fa-headset text-teal-500 mr-1"></i> Support prioritaire</td>
                                         <td class="text-center py-3 px-4">
                                             <i class="fas fa-times text-red-500"></i>
                                         </td>
@@ -120,7 +120,7 @@ class SubscriptionManager {
                     <!-- Pricing Plans -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                         <!-- Monthly Plan -->
-                        <div class="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-6 hover:border-purple-300 dark:hover:border-purple-600 transition-colors">
+                        <div class="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-6 hover:border-primary-300 dark:hover:border-primary-600 transition-colors">
                             <div class="text-center">
                                 <h4 class="text-lg font-semibold text-gray-900 dark:text-white">Mensuel</h4>
                                 <div class="mt-4">
@@ -136,10 +136,10 @@ class SubscriptionManager {
                         </div>
 
                         <!-- Yearly Plan (Recommended) -->
-                        <div class="border-2 border-purple-500 rounded-xl p-6 relative bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
+                        <div class="border-2 border-primary-500 rounded-xl p-6 relative bg-gradient-to-br from-primary-50 to-pink-50 dark:from-primary-900/20 dark:to-pink-900/20">
                             <div class="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                                <span class="bg-purple-500 text-white px-3 py-1 rounded-full text-xs font-medium">
-                                    🔥 Recommandé
+                                <span class="bg-primary-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+                                    <i class="fas fa-fire text-orange-300 mr-1"></i> Recommandé
                                 </span>
                             </div>
                             <div class="text-center">
@@ -153,7 +153,7 @@ class SubscriptionManager {
                                     Économisez 17% !
                                 </div>
                                 <button onclick="selectPlan('yearly')" 
-                                        class="w-full mt-6 btn-primary bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                                        class="w-full mt-6 btn-primary bg-gradient-to-r from-primary-600 to-green-600 hover:from-primary-700 hover:to-green-700">
                                     Choisir Annuel
                                 </button>
                             </div>
@@ -163,7 +163,7 @@ class SubscriptionManager {
                     <!-- Payment Simulation -->
                     <div id="payment-section" class="hidden">
                         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                            💳 Simulation de paiement
+                            <i class="fas fa-credit-card text-purple-500"></i> Simulation de paiement
                         </h3>
                         
                         <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
@@ -234,21 +234,21 @@ class SubscriptionManager {
                         
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="text-center">
-                                <div class="text-yellow-400 mb-2">⭐⭐⭐⭐⭐</div>
+                                <div class="text-yellow-400 mb-2"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
                                 <p class="text-sm text-gray-600 dark:text-gray-300 italic">
                                     "Les itinéraires panoramiques m'ont fait découvrir des endroits magnifiques !"
                                 </p>
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">- Marie L.</div>
                             </div>
                             <div class="text-center">
-                                <div class="text-yellow-400 mb-2">⭐⭐⭐⭐⭐</div>
+                                <div class="text-yellow-400 mb-2"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
                                 <p class="text-sm text-gray-600 dark:text-gray-300 italic">
                                     "Fini les embouteillages ! Le mode Premium m'a fait économiser des heures."
                                 </p>
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">- Pierre K.</div>
                             </div>
                             <div class="text-center">
-                                <div class="text-yellow-400 mb-2">⭐⭐⭐⭐⭐</div>
+                                <div class="text-yellow-400 mb-2"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
                                 <p class="text-sm text-gray-600 dark:text-gray-300 italic">
                                     "Interface sans pub, parfait pour me concentrer sur la route."
                                 </p>

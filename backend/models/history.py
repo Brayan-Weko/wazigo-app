@@ -1,3 +1,4 @@
+from flask import current_app
 from .database import db, DatabaseMixin, JSONColumn
 from datetime import datetime, timedelta
 from sqlalchemy import func, and_
@@ -154,10 +155,19 @@ class RouteHistory(DatabaseMixin, db.Model):
             self.time_saved_seconds = 0
             return
         
-        # Trouver le temps de trajet le plus long parmi les alternatives
-        max_time = max(route.get('travel_time', 0) for route in alternative_routes)
-        self.time_saved_seconds = max(0, max_time - self.travel_time_seconds)
-        self.save()
+        try:
+            # S'assurer que alternative_routes est une liste de dictionnaires
+            if not all(isinstance(r, dict) for r in alternative_routes):
+                raise ValueError("alternative_routes doit contenir des dictionnaires")
+                
+            # Trouver le temps de trajet le plus long parmi les alternatives
+            max_time = max(int(route.get('duration', 0)) for route in alternative_routes)
+            current_time = int(self.travel_time_seconds)
+            self.time_saved_seconds = max(0, max_time - current_time)
+            self.save()
+        except Exception as e:
+            self.time_saved_seconds = 0
+            current_app.logger.error(f'Erreur calcul temps économisé: {str(e)}')
     
     def get_route_summary(self):
         """Récupérer un résumé de l'itinéraire"""

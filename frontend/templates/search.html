@@ -55,7 +55,7 @@
                         <!-- Country Selection -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                <i class="fas fa-globe mr-2"></i>Sélectionnez votre pays
+                                <i class="fas fa-globe text-blue-400 mr-2"></i>Sélectionnez votre pays
                             </label>
                             <div class="relative">
                                 <select id="country-select" name="country" class="input-field pr-10" required onchange="onCountryChange()">
@@ -70,14 +70,14 @@
                             <!-- Quick location button -->
                             <button type="button" onclick="detectLocation()" 
                                     class="mt-2 inline-flex items-center px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">
-                                <i class="fas fa-map-marker-alt mr-1"></i> Détecter ma position
+                                <i class="fas fa-map-marker-alt mr-2"></i> Détecter ma position
                             </button>
                         </div>
 
                         <!-- Origin Selection -->
                         <div id="origin-section" style="display: none;">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                <i class="fas fa-rocket mr-2"></i>Point de départ
+                                <i class="fas fa-rocket text-green-500 mr-2"></i>Point de départ
                             </label>
                             
                             <!-- Selection method tabs -->
@@ -162,7 +162,7 @@
                         <!-- Destination Selection (Same structure as Origin) -->
                         <div id="destination-section" style="display: none;">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                <i class="fas fa-bullseye mr-2"></i>Point d'arrivée
+                                <i class="fas fa-bullseye text-red-500 mr-2"></i>Point d'arrivée
                             </label>
                             
                             <!-- Same structure as origin -->
@@ -358,38 +358,38 @@
 
                 <!-- Features comparison -->
                 {% if current_user.is_anonymous or current_user.subscription_type != 'premium' %}
-                <div class="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl shadow-lg p-6 border border-purple-200 dark:border-purple-800">
-                    <h3 class="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-4">
+                <div class="bg-gradient-to-br from-primary-50 to-green-50 dark:from-primary-900/20 dark:to-green-900/20 rounded-xl shadow-lg p-6 border border-primary-200 dark:border-primary-800">
+                    <h3 class="text-lg font-semibold text-primary-900 dark:text-primary-100 mb-4">
                         <i class="fas fa-crown mr-2"></i>Passez au Premium
                     </h3>
                     
                     <div class="space-y-3 text-sm">
-                        <div class="flex items-center text-purple-700 dark:text-purple-300">
+                        <div class="flex items-center text-primary-700 dark:text-primary-300">
                             <i class="fas fa-check text-green-500 mr-2"></i>
                             Carte trafic illimitée
                         </div>
-                        <div class="flex items-center text-purple-700 dark:text-purple-300">
+                        <div class="flex items-center text-primary-700 dark:text-primary-300">
                             <i class="fas fa-check text-green-500 mr-2"></i>
                             Sans publicité
                         </div>
-                        <div class="flex items-center text-purple-700 dark:text-purple-300">
+                        <div class="flex items-center text-primary-700 dark:text-primary-300">
                             <i class="fas fa-check text-green-500 mr-2"></i>
                             Alertes vocales avancées
                         </div>
-                        <div class="flex items-center text-purple-700 dark:text-purple-300">
+                        <div class="flex items-center text-primary-700 dark:text-primary-300">
                             <i class="fas fa-check text-green-500 mr-2"></i>
                             Itinéraires panoramiques
                         </div>
-                        <div class="flex items-center text-purple-700 dark:text-purple-300">
+                        <div class="flex items-center text-primary-700 dark:text-primary-300">
                             <i class="fas fa-check text-green-500 mr-2"></i>
                             Mode hors ligne avancé
                         </div>
                     </div>
 
                     <div class="mt-4 text-center">
-                        <div class="text-2xl font-bold text-purple-900 dark:text-purple-100">2$ / mois</div>
-                        <div class="text-xs text-purple-600 dark:text-purple-400 mb-3">≈ 1 200 FCFA</div>
-                        <button onclick="openUpgradeModal()" class="btn-primary w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                        <div class="text-2xl font-bold text-primary-900 dark:text-primary-100">2$ / mois</div>
+                        <div class="text-xs text-primary-600 dark:text-primary-400 mb-3">≈ 1 200 FCFA</div>
+                        <button onclick="openUpgradeModal()" class="btn-primary w-full bg-gradient-to-r from-primary-600 to-green-600 hover:from-primary-700 hover:to-green-700">
                             <i class="fas fa-rocket mr-2"></i> Essayer Premium
                         </button>
                     </div>

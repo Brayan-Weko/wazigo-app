@@ -64,36 +64,21 @@ def search_routes():
         if optimized_routes:
             best_route = optimized_routes[0]
 
-            # Vérifier que best_route['summary'] existe et est un dictionnaire
-            if not isinstance(best_route.get('summary'), dict):
-                current_app.logger.error('Format de route invalide: summary manquant')
-                return jsonify({'error': 'Format de route invalide'}), 500
-
-            # Extraire les coordonnées avec des valeurs par défaut sécurisées
-            origin_lat = best_route['summary'].get('origin', {}).get('lat', 0)
-            origin_lng = best_route['summary'].get('origin', {}).get('lng', 0)
-            destination_lat = best_route['summary'].get('destination', {}).get('lat', 0)
-            destination_lng = best_route['summary'].get('destination', {}).get('lng', 0)
-
             # Convertir le dictionnaire en JSON avant de le stocker
-            try:
-                selected_route_json = json.dumps(best_route)
-            except (TypeError, ValueError) as e:
-                current_app.logger.error(f'Erreur sérialisation JSON: {str(e)}')
-                return jsonify({'error': 'Erreur de format de données'}), 500
+            selected_route_json = json.dumps(best_route)
             
             history_entry = RouteHistory(
                 session_id=session_id,
                 origin_address=search_params['origin'],
-                origin_lat=origin_lat,
-                origin_lng=origin_lng,
+                origin_lat=best_route['summary']['origin']['lat'],
+                origin_lng=best_route['summary']['origin']['lng'],
                 destination_address=search_params['destination'],
-                destination_lat=destination_lat,
-                destination_lng=destination_lng,
+                destination_lat=best_route['summary']['destination']['lat'],
+                destination_lng=best_route['summary']['destination']['lng'],
                 selected_route_data=selected_route_json,
-                travel_time_seconds=best_route['summary'].get('duration', 0),
-                distance_meters=best_route['summary'].get('length', 0),
-                optimization_score=best_route.get('optimization_score', 0),
+                travel_time_seconds=best_route['summary']['duration'],
+                distance_meters=best_route['summary']['length'],
+                optimization_score=best_route['optimization_score'],
                 user_id=user_id
             )
             
@@ -101,19 +86,12 @@ def search_routes():
             if len(optimized_routes) > 1:
                 history_entry.calculate_time_saved([r['summary'] for r in optimized_routes[1:]])
             
-            try:
-                history_entry.save()
-            except Exception as e:
-                current_app.logger.error(f'Erreur sauvegarde historique: {str(e)}')
-                # Ne pas échouer complètement si l'historique ne peut pas être sauvegardé
+            history_entry.save()
             
             # Mettre à jour les analytics si utilisateur connecté
             if user_id:
-                try:
-                    analytics = UserAnalytics.get_or_create(user_id)
-                    analytics.update_from_route_history()
-                except Exception as e:
-                    current_app.logger.error(f'Erreur mise à jour analytics: {str(e)}')
+                analytics = UserAnalytics.get_or_create(user_id)
+                analytics.update_from_route_history()
         
         return jsonify({
             'success': True,
@@ -547,11 +525,7 @@ def get_advertisements():
 def track_advertisement_impression():
     """Route de fallback pour tracking impressions."""
     try:
-        data = request.get_json()
-        ad_id = data.get('ad_id')
-        if ad_id:
-            return redirect(url_for('subscription_api.track_ad_impression', ad_id=ad_id))
-        return jsonify({'success': False, 'error': 'Missing ad_id'}), 400
+        return redirect(url_for('subscription_api.track_ad_impression'))
     except Exception as e:
         return jsonify({'success': True})
 

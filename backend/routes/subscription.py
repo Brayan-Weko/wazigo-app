@@ -352,7 +352,7 @@ def track_ad_impression():
     try:
         if request.method == 'GET':
             ad_id = request.args.get('ad_id')
-        else:  # POST
+        else:
             data = request.get_json()
             ad_id = data.get('ad_id')
         
