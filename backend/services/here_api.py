@@ -41,9 +41,30 @@ class HereApiService:
         params['apikey'] = self.api_key
         
         try:
-            response = self.session.get(url, params=params, timeout=timeout)
-            response.raise_for_status()
+            self.logger.info(f"Making request to: {url}")
+            self.logger.info(f"With params: {params}")
             
+            response = self.session.get(url, params=params, timeout=timeout)
+            
+            # Log de la réponse pour débogage
+            self.logger.info(f"HERE API Response status: {response.status_code}")
+            
+            if response.status_code == 400:
+                # Erreur 400 - analyser la réponse
+                try:
+                    error_data = response.json()
+                    self.logger.error(f"HERE API 400 Error: {error_data}")
+                    
+                    # Vérifier les erreurs courantes
+                    if 'error' in error_data:
+                        error_msg = error_data['error'].get('message', 'Unknown error')
+                        self.logger.error(f"HERE API Error Message: {error_msg}")
+                except:
+                    self.logger.error(f"HERE API 400 Error - Raw response: {response.text}")
+                
+                return None
+            
+            response.raise_for_status()
             data = response.json()
             
             # Mettre en cache
@@ -54,6 +75,8 @@ class HereApiService:
             
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Erreur requête HERE API: {str(e)}")
+            # Log de l'URL complète pour débogage
+            self.logger.error(f"URL complète: {response.url if 'response' in locals() else 'N/A'}")
             return None
         except json.JSONDecodeError as e:
             self.logger.error(f"Erreur décodage JSON HERE API: {str(e)}")
@@ -72,33 +95,34 @@ class HereApiService:
             self.logger.error("Impossible de géocoder les adresses")
             return None
         
-        # Paramètres de la requête
+        # Paramètres de base pour l'API HERE v8
         params = {
             'transportMode': 'car',
             'origin': f"{origin_coords['lat']},{origin_coords['lng']}",
             'destination': f"{destination_coords['lat']},{destination_coords['lng']}",
-            'return': 'summary,polyline,instructions,incidents,tollCosts,typicalDuration',
-            'alternatives': search_params.get('alternatives', 3),
+            'return': 'summary,polyline,instructions,incidents',
+            'alternatives': min(search_params.get('alternatives', 3), 7),  # HERE limite à 7
             'units': 'metric'
         }
         
-        # Options de routage
-        if search_params.get('avoid_tolls'):
-            params['avoid[features]'] = 'tollRoad'
-        
-        if search_params.get('avoid_highways'):
-            params['avoid[features]'] = params.get('avoid[features]', '') + ',controlledAccessHighway'
-        
-        if search_params.get('avoid_ferries'):
-            params['avoid[features]'] = params.get('avoid[features]', '') + ',ferry'
-        
-        # Heure de départ
+        # Heure de départ (format ISO obligatoire pour HERE v8)
         if search_params.get('departure_time'):
-            params['departureTime'] = search_params['departure_time']
+            try:
+                # Vérifier si c'est déjà au format ISO
+                departure_time = search_params['departure_time']
+                if 'T' not in departure_time:
+                    # Convertir si ce n'est pas au format ISO
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(departure_time)
+                    departure_time = dt.isoformat()
+                params['departureTime'] = departure_time
+            except:
+                # Si erreur, utiliser l'heure actuelle
+                params['departureTime'] = datetime.now().isoformat()
         else:
             params['departureTime'] = datetime.now().isoformat()
         
-        # Type de route
+        # Type de route (HERE v8 utilise routingMode)
         route_type = search_params.get('route_type', 'fastest')
         if route_type == 'shortest':
             params['routingMode'] = 'short'
@@ -107,9 +131,23 @@ class HereApiService:
         else:  # fastest
             params['routingMode'] = 'fast'
         
+        # Options d'évitement (HERE v8 format)
+        avoid_features = []
+        if search_params.get('avoid_tolls'):
+            avoid_features.append('tollRoad')
+        if search_params.get('avoid_highways'):
+            avoid_features.append('controlledAccessHighway')
+        if search_params.get('avoid_ferries'):
+            avoid_features.append('ferry')
+        
+        if avoid_features:
+            params['avoid[features]'] = ','.join(avoid_features)
+        
         # Cache key
         cache_key = f"routes_{hash(str(sorted(params.items())))}"
         
+        # Faire la requête
+        self.logger.info(f"HERE API Request: {url} avec params: {params}")
         data = self._make_request(url, params, cache_key)
         
         if data and 'routes' in data:
@@ -117,32 +155,68 @@ class HereApiService:
             for route in data['routes']:
                 route['origin_coords'] = origin_coords
                 route['destination_coords'] = destination_coords
+                
+                # Ajouter les informations de trafic si disponibles
+                if 'summary' in route:
+                    summary = route['summary']
+                    if 'duration' in summary and 'typicalDuration' in summary:
+                        route['traffic_analysis'] = {
+                            'ratio': summary['duration'] / summary['typicalDuration'] if summary['typicalDuration'] > 0 else 1.0,
+                            'delay_seconds': max(0, summary['duration'] - summary.get('typicalDuration', summary['duration'])),
+                            'status': self._get_traffic_status(summary)
+                        }
             
             return data
         
+        self.logger.error(f"HERE API Response: {data}")
         return None
+
+    def _get_traffic_status(self, summary: Dict) -> str:
+        """Déterminer le statut du trafic basé sur la durée"""
+        duration = summary.get('duration', 0)
+        typical_duration = summary.get('typicalDuration', duration)
+        
+        if typical_duration == 0:
+            return 'unknown'
+        
+        ratio = duration / typical_duration
+        
+        if ratio <= 1.1:
+            return 'free'
+        elif ratio <= 1.3:
+            return 'light'
+        elif ratio <= 1.6:
+            return 'moderate'
+        else:
+            return 'heavy'
     
     def _get_coordinates(self, address: str) -> Optional[Dict]:
         """Récupérer les coordonnées d'une adresse"""
         
         # Si c'est déjà des coordonnées (lat,lng)
-        if ',' in address:
+        if isinstance(address, str) and ',' in address:
             try:
-                lat, lng = map(float, address.split(','))
-                return {'lat': lat, 'lng': lng, 'address': address}
+                parts = address.split(',')
+                if len(parts) == 2:
+                    lat, lng = map(float, parts)
+                    # Valider les coordonnées
+                    if -90 <= lat <= 90 and -180 <= lng <= 180:
+                        return {'lat': lat, 'lng': lng, 'address': address}
             except ValueError:
                 pass
         
-        # Géocoder l'adresse
-        geocode_result = self.geocode_address(address)
-        if geocode_result and len(geocode_result) > 0:
-            first_result = geocode_result[0]
-            return {
-                'lat': first_result['position']['lat'],
-                'lng': first_result['position']['lng'],
-                'address': first_result['title']
-            }
+        # Si c'est une adresse textuelle, la géocoder
+        if isinstance(address, str) and address.strip():
+            geocode_result = self.geocode_address(address.strip())
+            if geocode_result and len(geocode_result) > 0:
+                first_result = geocode_result[0]
+                return {
+                    'lat': first_result['position']['lat'],
+                    'lng': first_result['position']['lng'],
+                    'address': first_result['title']
+                }
         
+        self.logger.error(f"Impossible de récupérer les coordonnées pour: {address}")
         return None
     
     def geocode_address(self, address: str, limit: int = 5) -> Optional[List[Dict]]:

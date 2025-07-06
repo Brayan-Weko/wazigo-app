@@ -1,49 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from backend.models import db, User, SubscriptionPlan, UserSubscription, Advertisement
+from backend.services.auth_service import require_auth, optional_auth, get_current_user, is_premium_user
 from datetime import datetime, timedelta
-
-# Fonctions d'authentification simples (sans import externe)
-def require_auth(f):
-    """Décorateur simple pour vérifier l'authentification."""
-    from functools import wraps
-    
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user' not in session:
-            return jsonify({
-                'success': False,
-                'error': {'message': 'Authentification requise', 'code': 'AUTH_REQUIRED'}
-            }), 401
-        return f(*args, **kwargs)
-    return decorated_function
-
-def optional_auth(f):
-    """Décorateur pour authentification optionnelle."""
-    from functools import wraps
-    
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        return f(*args, **kwargs)
-    return decorated_function
-
-def get_current_user():
-    """Récupérer l'utilisateur actuel depuis la session."""
-    if 'user' not in session:
-        return None
-    
-    user_data = session.get('user')
-    if not user_data or not user_data.get('id'):
-        return None
-    
-    try:
-        return User.get_by_id(user_data['id'])
-    except Exception:
-        return None
-
-def is_premium_user():
-    """Vérifier si l'utilisateur est premium."""
-    user = get_current_user()
-    return user and hasattr(user, 'is_premium') and user.is_premium
 
 # Blueprint
 subscription_bp = Blueprint('subscription_api', __name__)

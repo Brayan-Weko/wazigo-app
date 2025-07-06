@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import session, jsonify, current_app
-from models import User
+from backend.models import User
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,35 @@ def require_auth(f):
                 }
             }), 401
         
+        # Vérifier que l'utilisateur existe toujours en base
+        try:
+            user = User.query.get(user_data['id'])
+            if not user or not user.is_active:
+                # Utilisateur supprimé ou désactivé
+                session.pop('user', None)
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'USER_INACTIVE',
+                        'message': 'Compte utilisateur inactif'
+                    }
+                }), 401
+            
+            # Mettre à jour la dernière activité
+            user.update_last_activity()
+            
+        except Exception as e:
+            logger.error(f"Erreur vérification utilisateur: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'DATABASE_ERROR',
+                    'message': 'Erreur de vérification d\'authentification'
+                }
+            }), 500
+        
         return f(*args, **kwargs)
+    
     return decorated_function
 
 def optional_auth(f):

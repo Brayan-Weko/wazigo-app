@@ -15,116 +15,304 @@ api_bp = Blueprint('api', __name__)
 @api_bp.route('/search-routes', methods=['POST'])
 @rate_limit('30 per minute')
 def search_routes():
-    """API pour rechercher des itinéraires optimisés"""
-    
+    """Rechercher des itinéraires optimisés"""
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'Données JSON requises'}), 400
+            return jsonify({
+                'success': False,
+                'error': {'message': 'Données manquantes', 'code': 'VALIDATION_ERROR'}
+            }), 400
+
+        # Validation et nettoyage des données de localisation
+        origin_data = data.get('origin')
+        destination_data = data.get('destination')
         
-        # Validation des données
-        required_fields = ['origin', 'destination']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'error': f'Champ {field} requis'}), 400
+        # Nettoyer et normaliser les données de localisation
+        origin_info = normalize_location_data(origin_data)
+        destination_info = normalize_location_data(destination_data)
         
-        # Paramètres de recherche
+        if not origin_info or not destination_info:
+            return jsonify({
+                'success': False,
+                'error': {'message': 'Origine et destination requises', 'code': 'VALIDATION_ERROR'}
+            }), 400
+
+        # Vérifier les limites d'abonnement
+        user_id = session.get('user', {}).get('id')
+        subscription_check = check_user_limits(user_id, 'search')
+        
+        if not subscription_check['allowed']:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'message': 'Limite de recherches atteinte',
+                    'code': 'LIMIT_EXCEEDED',
+                    'limits': subscription_check['limits']
+                }
+            }), 429
+
+        # Préparer les paramètres de recherche
         search_params = {
-            'origin': data['origin'],
-            'destination': data['destination'],
+            'origin': origin_info,
+            'destination': destination_info,
             'departure_time': data.get('departure_time'),
+            'route_type': data.get('route_type', 'fastest'),
             'avoid_tolls': data.get('avoid_tolls', False),
             'avoid_highways': data.get('avoid_highways', False),
             'avoid_ferries': data.get('avoid_ferries', False),
-            'route_type': data.get('route_type', 'fastest'),
-            'alternatives': data.get('alternatives', 3)
+            'alternatives': min(int(data.get('alternatives', 3)), 5),
+            'subscription_type': subscription_check.get('subscription_type', 'guest'),
+            'traffic_radius_km': subscription_check.get('limits', {}).get('traffic_radius_km', 45)
         }
-        
-        # Rechercher les itinéraires avec HERE Maps
-        here_api = HereApiService()
-        routes_data = here_api.calculate_routes(search_params)
-        
-        if not routes_data or 'routes' not in routes_data:
-            return jsonify({'error': 'Aucun itinéraire trouvé'}), 404
-        
-        # Analyser le trafic pour chaque itinéraire
-        traffic_analyzer = TrafficAnalyzer()
-        
-        # Optimiser et scorer les itinéraires
-        route_optimizer = RouteOptimizer()
-        optimized_routes = route_optimizer.optimize_routes(
-            routes_data['routes'], 
-            search_params
-        )
-        
-        # Sauvegarder dans l'historique
-        user_id = session.get('user', {}).get('id')
-        session_id = session.get('session_id')
-        
-        if optimized_routes:
-            best_route = optimized_routes[0]
 
-            # Vérifier que best_route['summary'] existe et est un dictionnaire
-            if not isinstance(best_route.get('summary'), dict):
-                current_app.logger.error('Format de route invalide: summary manquant')
-                return jsonify({'error': 'Format de route invalide'}), 500
-
-            # Extraire les coordonnées avec des valeurs par défaut sécurisées
-            origin_lat = best_route['summary'].get('origin', {}).get('lat', 0)
-            origin_lng = best_route['summary'].get('origin', {}).get('lng', 0)
-            destination_lat = best_route['summary'].get('destination', {}).get('lat', 0)
-            destination_lng = best_route['summary'].get('destination', {}).get('lng', 0)
-
-            # Convertir le dictionnaire en JSON avant de le stocker
-            try:
-                selected_route_json = json.dumps(best_route)
-            except (TypeError, ValueError) as e:
-                current_app.logger.error(f'Erreur sérialisation JSON: {str(e)}')
-                return jsonify({'error': 'Erreur de format de données'}), 500
-            
-            history_entry = RouteHistory(
-                session_id=session_id,
-                origin_address=search_params['origin'],
-                origin_lat=origin_lat,
-                origin_lng=origin_lng,
-                destination_address=search_params['destination'],
-                destination_lat=destination_lat,
-                destination_lng=destination_lng,
-                selected_route_data=selected_route_json,
-                travel_time_seconds=best_route['summary'].get('duration', 0),
-                distance_meters=best_route['summary'].get('length', 0),
-                optimization_score=best_route.get('optimization_score', 0),
-                user_id=user_id
-            )
-            
-            # Calculer le temps économisé
-            if len(optimized_routes) > 1:
-                history_entry.calculate_time_saved([r['summary'] for r in optimized_routes[1:]])
-            
-            try:
-                history_entry.save()
-            except Exception as e:
-                current_app.logger.error(f'Erreur sauvegarde historique: {str(e)}')
-                # Ne pas échouer complètement si l'historique ne peut pas être sauvegardé
-            
-            # Mettre à jour les analytics si utilisateur connecté
-            if user_id:
-                try:
-                    analytics = UserAnalytics.get_or_create(user_id)
-                    analytics.update_from_route_history()
-                except Exception as e:
-                    current_app.logger.error(f'Erreur mise à jour analytics: {str(e)}')
+        # Rechercher les itinéraires
+        from backend.services.route_service import RouteService
+        route_service = RouteService()
         
-        return jsonify({
+        routes_result = route_service.find_optimal_routes(**search_params)
+        
+        if not routes_result['success']:
+            return jsonify({
+                'success': False,
+                'error': routes_result['error']
+            }), 500
+
+        # Enregistrer dans l'historique si utilisateur connecté
+        if user_id:
+            save_route_to_history(user_id, search_params, routes_result['routes'])
+            
+            # Incrémenter le compteur d'usage
+            track_user_usage(user_id, 'search')
+
+        # Préparer la réponse
+        response_data = {
             'success': True,
-            'routes': optimized_routes,
-            'search_params': search_params,
-            'timestamp': datetime.utcnow().isoformat()
-        })
-        
+            'routes': routes_result['routes'],
+            'search_metadata': {
+                'query_time': routes_result.get('query_time', 0),
+                'total_routes': len(routes_result['routes']),
+                'subscription_type': subscription_check.get('subscription_type', 'guest'),
+                'traffic_radius_applied': search_params['traffic_radius_km'],
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        }
+
+        return jsonify(response_data)
+
     except Exception as e:
         current_app.logger.error(f'Erreur recherche itinéraires: {str(e)}')
-        return jsonify({'error': 'Erreur lors de la recherche d\'itinéraires'}), 500
+        return jsonify({
+            'success': False,
+            'error': {
+                'message': 'Erreur lors de la recherche d\'itinéraires',
+                'code': 'SEARCH_ERROR'
+            }
+        }), 500
+
+def normalize_location_data(location_data):
+    """Normaliser les données de localisation en format standard."""
+    if not location_data:
+        return None
+    
+    # Si c'est déjà une string (adresse simple)
+    if isinstance(location_data, str):
+        return {
+            'address': location_data.strip(),
+            'lat': None,
+            'lng': None,
+            'type': 'address'
+        }
+    
+    # Si c'est un dictionnaire (données structurées)
+    if isinstance(location_data, dict):
+        # Cas 1: Coordonnées GPS
+        if 'lat' in location_data and 'lng' in location_data:
+            try:
+                lat = float(location_data['lat'])
+                lng = float(location_data['lng'])
+                return {
+                    'address': location_data.get('address', f"{lat}, {lng}"),
+                    'lat': lat,
+                    'lng': lng,
+                    'type': 'coordinates'
+                }
+            except (ValueError, TypeError):
+                pass
+        
+        # Cas 2: Adresse avec métadonnées
+        if 'address' in location_data:
+            return {
+                'address': str(location_data['address']).strip(),
+                'lat': location_data.get('lat'),
+                'lng': location_data.get('lng'),
+                'type': 'address',
+                'country': location_data.get('country'),
+                'source': location_data.get('source', 'manual')
+            }
+        
+        # Cas 3: Format HERE Maps/Google
+        if 'title' in location_data and 'position' in location_data:
+            pos = location_data['position']
+            return {
+                'address': str(location_data['title']).strip(),
+                'lat': pos.get('lat'),
+                'lng': pos.get('lng'),
+                'type': 'geocoded'
+            }
+    
+    # Fallback: convertir en string
+    try:
+        return {
+            'address': str(location_data).strip(),
+            'lat': None,
+            'lng': None,
+            'type': 'fallback'
+        }
+    except:
+        return None
+
+def check_user_limits(user_id, action):
+    """Vérifier les limites d'utilisation de l'utilisateur."""
+    try:
+        if not user_id:
+            # Utilisateur invité
+            return {
+                'allowed': True,
+                'subscription_type': 'guest',
+                'limits': {
+                    'traffic_radius_km': 45,
+                    'daily_searches': 10,
+                    'countries_access': 1,
+                    'has_ads': True
+                }
+            }
+        
+        from backend.models.user import User
+        user = User.get_by_id(user_id)
+        
+        if not user:
+            # Utilisateur non trouvé, traiter comme invité
+            return {
+                'allowed': True,
+                'subscription_type': 'guest',
+                'limits': {
+                    'traffic_radius_km': 45,
+                    'daily_searches': 10,
+                    'countries_access': 1,
+                    'has_ads': True
+                }
+            }
+        
+        # Récupérer les limites d'abonnement
+        if hasattr(user, 'get_subscription_limits'):
+            limits = user.get_subscription_limits()
+            subscription_type = user.subscription_type if hasattr(user, 'subscription_type') else 'free'
+            
+            # Vérifier les limites de recherche
+            if action == 'search':
+                if hasattr(user, 'can_search'):
+                    allowed = user.can_search()
+                else:
+                    allowed = True  # Par défaut autorisé
+                
+                return {
+                    'allowed': allowed,
+                    'subscription_type': subscription_type,
+                    'limits': limits
+                }
+        
+        # Fallback pour utilisateur sans abonnement
+        return {
+            'allowed': True,
+            'subscription_type': 'free',
+            'limits': {
+                'traffic_radius_km': 45,
+                'daily_searches': 50,
+                'countries_access': 1,
+                'has_ads': True
+            }
+        }
+        
+    except Exception as e:
+        current_app.logger.warning(f'Erreur vérification limites: {str(e)}')
+        # En cas d'erreur, autoriser avec limites de base
+        return {
+            'allowed': True,
+            'subscription_type': 'free',
+            'limits': {
+                'traffic_radius_km': 45,
+                'daily_searches': 50,
+                'countries_access': 1,
+                'has_ads': True
+            }
+        }
+
+def save_route_to_history(user_id, search_params, routes):
+    """Sauvegarder la recherche dans l'historique utilisateur."""
+    try:
+        if not routes or len(routes) == 0:
+            return
+        
+        # Prendre la première route (la meilleure)
+        best_route = routes[0]
+        
+        if 'summary' in best_route:
+            summary = best_route['summary']
+        elif 'original_data' in best_route:
+            summary = best_route['original_data'].get('summary', {})
+        else:
+            summary = {}
+        
+        from backend.models.history import RouteHistory
+        
+        # Créer l'entrée d'historique
+        history_entry = RouteHistory(
+            user_id=user_id,
+            origin_address=search_params['origin']['address'],
+            origin_lat=search_params['origin'].get('lat'),
+            origin_lng=search_params['origin'].get('lng'),
+            destination_address=search_params['destination']['address'],
+            destination_lat=search_params['destination'].get('lat'),
+            destination_lng=search_params['destination'].get('lng'),
+            travel_time_seconds=summary.get('duration', 0),
+            distance_meters=summary.get('length', 0),
+            route_type=search_params.get('route_type', 'fastest'),
+            optimization_score=best_route.get('optimization_score', 0),
+            time_saved_seconds=best_route.get('time_saved', 0),
+            route_data={
+                'alternatives_count': len(routes),
+                'avoid_tolls': search_params.get('avoid_tolls', False),
+                'avoid_highways': search_params.get('avoid_highways', False),
+                'traffic_analysis': best_route.get('traffic_analysis', {})
+            }
+        )
+        
+        history_entry.save()
+        
+    except Exception as e:
+        current_app.logger.warning(f'Erreur sauvegarde historique: {str(e)}')
+
+def track_user_usage(user_id, action):
+    """Tracker l'utilisation des fonctionnalités."""
+    try:
+        # Incrémenter le compteur d'abonnement si applicable
+        from models import User
+        user = User.get_by_id(user_id)
+        
+        if user and hasattr(user, 'subscription') and user.subscription:
+            if action == 'search':
+                user.subscription.increment_daily_searches()
+        
+        # Mettre à jour les analytics utilisateur
+        if hasattr(user, 'analytics') and user.analytics:
+            analytics = user.analytics
+            analytics.total_searches += 1
+            analytics.last_search = datetime.utcnow()
+            analytics.save()
+            
+    except Exception as e:
+        current_app.logger.warning(f'Erreur tracking usage: {str(e)}')
 
 @api_bp.route('/geocode', methods=['POST'])
 @rate_limit('60 per minute')

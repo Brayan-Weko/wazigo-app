@@ -35,7 +35,7 @@ class Config:
     HERE_API_KEY = os.environ.get('HERE_API_KEY')
     HERE_BASE_URL = 'https://router.hereapi.com/v8'
     HERE_GEOCODING_URL = 'https://geocode.search.hereapi.com/v1'
-    HERE_TRAFFIC_URL = 'https://data.traffic.hereapi.com/v7'
+    HERE_TRAFFIC_URL = 'https://data.traffic.hereapi.com/v7/flow'
     
     # Configuration Google OAuth
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')

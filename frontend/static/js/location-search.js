@@ -15,6 +15,11 @@ class LocationSearchManager {
         this.loadFavoriteRoutes();
         this.loadRecentSearches();
         console.log('✅ Location search manager initialized');
+        // Ajouter un raccourci de débogage en développement
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            window.debugLocation = () => this.debugLocationData();
+            console.log('Debug: Utilisez debugLocation() dans la console pour inspecter les données');
+        }
     }
 
     setupEventListeners() {
@@ -80,29 +85,6 @@ class LocationSearchManager {
             }
         });
     }
-
-    /*async searchLocations(query, type) {
-        this.selectedCountry = window.CountryManager?.getSelectedCountry();
-
-        if (!this.selectedCountry) {
-            this.showSuggestionError(type, 'Veuillez d\'abord sélectionner un pays');
-            return;
-        }
-
-        try {
-            const response = await fetch(`/api/autocomplete?q=${encodeURIComponent(query)}&country=${this.selectedCountry.code}&limit=8`);
-            const data = await response.json();
-            
-            if (data.success && data.suggestions) {
-                this.displaySuggestions(data.suggestions, type);
-            } else {
-                this.showSuggestionError(type, 'Aucun résultat trouvé');
-            }
-        } catch (error) {
-            console.error('Search error:', error);
-            this.showSuggestionError(type, 'Erreur de recherche');
-        }
-    }*/
     
     async searchLocations(query, type) {
         this.selectedCountry = window.CountryManager?.getSelectedCountry();
@@ -188,10 +170,10 @@ class LocationSearchManager {
             const item = document.createElement('div');
             item.className = 'suggestion-item';
             item.innerHTML = `
-                <div class="flex items-center">
+                <div class="flex items-center mb-2 mt-4 p-3 border-b border-gray-100 cursor-pointer transition-colors duration-200 leading-normal hover:bg-gray-50 last:border-b-0 dark:border-gray-600 dark:hover:bg-gray-600">
                     <i class="fas fa-map-marker-alt text-gray-400 mr-3"></i>
                     <div class="flex-1">
-                        <div class="font-medium text-gray-900 dark:text-white">${suggestion.title}</div>
+                        <div class="font-medium text-gray-900 dark:text-white mb-1">${suggestion.title}</div>
                         <div class="text-sm text-gray-500 dark:text-gray-400">${suggestion.label}</div>
                     </div>
                 </div>
@@ -226,13 +208,7 @@ class LocationSearchManager {
     }
 
     selectLocation(location, type) {
-        const locationData = {
-            address: location.title,
-            label: location.label,
-            lat: location.position.lat,
-            lng: location.position.lng,
-            country: this.selectedCountry?.code
-        };
+        const locationData = this.normalizeLocationData(location);
 
         if (type === 'origin') {
             this.selectedOrigin = locationData;
@@ -303,29 +279,58 @@ class LocationSearchManager {
 
     async reverseGeocode(lat, lng, type) {
         try {
+            // Validation des coordonnées d'entrée
+            const numLat = parseFloat(lat);
+            const numLng = parseFloat(lng);
+            
+            if (isNaN(numLat) || isNaN(numLng) ||
+                numLat < -90 || numLat > 90 ||
+                numLng < -180 || numLng > 180) {
+                showAlert('Coordonnées invalides', 'error');
+                return;
+            }
+
             const response = await fetch('/maps/reverse-geocode', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ lat, lng })
+                body: JSON.stringify({ 
+                    lat: numLat, 
+                    lng: numLng 
+                })
             });
 
             const data = await response.json();
             
             if (data.success && data.address) {
                 const locationData = {
-                    address: data.address.title,
-                    label: data.address.label,
-                    lat: lat,
-                    lng: lng,
+                    title: data.address.title || `Position (${numLat.toFixed(4)}, ${numLng.toFixed(4)})`,
+                    //address: data.address.title,
+                    label: data.address.label || data.address.title,
+                    position: {
+                        lat: numLat,
+                        lng: numLng
+                    },
                     country: this.selectedCountry?.code
                 };
 
                 this.selectLocation(locationData, type);
-                showAlert(`Coordonnées validées: ${data.address.title}`, 'success');
+                showAlert(`Coordonnées validées: ${locationData.title}`, 'success');
             } else {
-                showAlert('Coordonnées invalides', 'error');
+                // Fallback avec coordonnées uniquement
+                const fallbackLocation = {
+                    title: `Position (${numLat.toFixed(4)}, ${numLng.toFixed(4)})`,
+                    label: `Coordonnées: ${numLat.toFixed(6)}, ${numLng.toFixed(6)}`,
+                    position: {
+                        lat: numLat,
+                        lng: numLng
+                    },
+                    country: this.selectedCountry?.code
+                };
+                
+                this.selectLocation(fallbackLocation, type);
+                showAlert('Coordonnées définies (adresse non trouvée)', 'warning');
             }
         } catch (error) {
             console.error('Reverse geocoding error:', error);
@@ -454,51 +459,6 @@ class LocationSearchManager {
         }
     }
 
-    /*async reverseGeocodeForMap(lat, lng) {
-        try {
-            const response = await fetch('/maps/reverse-geocode', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ lat, lng })
-            });
-
-            const data = await response.json();
-            
-            if (data.success && data.address) {
-                document.getElementById('selected-location-info').textContent = 
-                    `📍 ${data.address.title}`;
-                
-                // Stocker les données pour confirmation
-                this.mapSelectedLocation = {
-                    address: data.address.title,
-                    label: data.address.label || data.address.title,
-                    lat: parseFloat(lat),
-                    lng: parseFloat(lng),
-                    country: this.selectedCountry?.code
-                };
-            } else {
-                this.mapSelectedLocation = {
-                    address: `Position (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
-                    label: `Coordonnées: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-                    lat: parseFloat(lat),
-                    lng: parseFloat(lng),
-                    country: this.selectedCountry?.code
-                };
-            }
-        } catch (error) {
-            console.error('Map reverse geocoding error:', error);
-            this.mapSelectedLocation = {
-                address: `Position (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
-                label: `Coordonnées: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-                lat: parseFloat(lat),
-                lng: parseFloat(lng),
-                country: this.selectedCountry?.code
-            };
-        }
-    }*/
-
     async reverseGeocodeForMap(lat, lng) {
         try {
             const response = await this.throttledNominatimRequest(
@@ -626,6 +586,55 @@ class LocationSearchManager {
         }
 
         this.reverseGeocode(lat, lng, type);
+    }
+
+    normalizeLocationData(location) {
+        /**
+         * Normalise les données de localisation pour éviter les erreurs de format
+         */
+        const normalized = {
+            address: '',
+            label: '',
+            lat: null,
+            lng: null,
+            type: 'unknown',
+            country: this.selectedCountry?.code || null
+        };
+
+        // Cas 1: Format standard avec title et position
+        if (location.title && location.position) {
+            normalized.address = String(location.title).trim();
+            normalized.label = String(location.label || location.title).trim();
+            normalized.lat = parseFloat(location.position.lat);
+            normalized.lng = parseFloat(location.position.lng);
+            normalized.type = 'geocoded';
+        }
+        // Cas 2: Format direct avec address et coordonnées
+        else if (location.address) {
+            normalized.address = String(location.address).trim();
+            normalized.label = String(location.label || location.address).trim();
+            normalized.lat = location.lat ? parseFloat(location.lat) : null;
+            normalized.lng = location.lng ? parseFloat(location.lng) : null;
+            normalized.type = 'direct';
+        }
+        // Cas 3: String simple (adresse uniquement)
+        else if (typeof location === 'string') {
+            normalized.address = location.trim();
+            normalized.label = location.trim();
+            normalized.type = 'address_only';
+        }
+        
+        // Validation des coordonnées
+        if (normalized.lat !== null && normalized.lng !== null) {
+            if (isNaN(normalized.lat) || isNaN(normalized.lng) ||
+                normalized.lat < -90 || normalized.lat > 90 ||
+                normalized.lng < -180 || normalized.lng > 180) {
+                normalized.lat = null;
+                normalized.lng = null;
+            }
+        }
+
+        return normalized;
     }
 
     async loadFavoriteRoutes() {
@@ -825,6 +834,11 @@ class LocationSearchManager {
     }
 
     handleRecentSelection(locationData, type) {
+        // Vérifier si on sélectionne une destination sans origine
+        if (type === 'destination' && !this.selectedOrigin) {
+            showAlert('Veuillez d\'abord sélectionner un point de départ', 'error');
+            return;
+        }
 
         const currentCountry = window.CountryManager?.getSelectedCountry();
     
@@ -833,12 +847,6 @@ class LocationSearchManager {
             
             // Afficher un modal pour gérer le conflit de pays
             this.showCountryConflictModal(locationData, type);
-            return;
-        }
-        
-        // Vérifier si on sélectionne une destination sans origine
-        if (type === 'destination' && !this.selectedOrigin) {
-            showAlert('Veuillez d\'abord sélectionner un point de départ', 'error');
             return;
         }
 
@@ -932,6 +940,32 @@ class LocationSearchManager {
             this.openMapSelector(type);
         }
     }
+
+    getValidatedLocationData(type) {
+        /**
+         * Récupère et valide les données de localisation avant envoi à l'API
+         */
+        const locationData = type === 'origin' ? this.selectedOrigin : this.selectedDestination;
+        
+        if (!locationData) {
+            return null;
+        }
+
+        // S'assurer que nous avons les données essentielles
+        if (!locationData.address || locationData.address.trim() === '') {
+            console.error(`${type} address is missing`);
+            return null;
+        }
+
+        // Retourner un objet propre et validé
+        return {
+            address: String(locationData.address).trim(),
+            lat: locationData.lat && !isNaN(locationData.lat) ? parseFloat(locationData.lat) : null,
+            lng: locationData.lng && !isNaN(locationData.lng) ? parseFloat(locationData.lng) : null,
+            country: locationData.country || this.selectedCountry?.code || null,
+            type: locationData.type || 'manual'
+        };
+    }
 }
 
 // Instance globale
@@ -939,19 +973,35 @@ window.LocationSearch = new LocationSearchManager();
 
 // Fonctions globales pour les boutons
 window.setLocationMethod = (type, method) => {
-    // Masquer toutes les méthodes
-    document.querySelectorAll(`#${type}-section .location-input-container`).forEach(container => {
-        container.classList.add('hidden');
+    // Mettre à jour les boutons
+    const buttons = document.querySelectorAll(`#${locationType}-section .location-method-btn`);
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.method === method) {
+            btn.classList.add('active');
+        }
     });
+
+    // Afficher/masquer les conteneurs appropriés
+    const containers = document.querySelectorAll(`#${locationType}-section .location-input-container`);
+    containers.forEach(container => container.classList.add('hidden'));
+    
+    const targetContainer = document.getElementById(`${locationType}-${method}-method`);
+    if (targetContainer) {
+        targetContainer.classList.remove('hidden');
+    }
     
     // Afficher la méthode sélectionnée
     document.getElementById(`${type}-${method}-method`).classList.remove('hidden');
-    
-    // Mettre à jour les boutons
-    document.querySelectorAll(`#${type}-section .location-method-btn`).forEach(btn => {
-        btn.classList.remove('active');
-    });
+
     document.querySelector(`#${type}-section .location-method-btn[data-method="${method}"]`).classList.add('active');
+
+    // Réinitialiser la sélection
+    if (locationType === 'origin') {
+        window.selectedOrigin = null;
+    } else {
+        window.selectedDestination = null;
+    }
 };
 
 window.openMapSelector = (type) => window.LocationSearch.openMapSelector(type);

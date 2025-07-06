@@ -32,9 +32,9 @@
                         <div class="text-xs text-blue-600 dark:text-blue-300">Fonctionnalités limitées</div>
                     </div>
                 {% elif current_user.subscription_type == 'premium' %}
-                    <div class="bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-lg p-3">
-                        <div class="text-sm font-medium text-purple-800 dark:text-purple-200"><i class="fas fa-crown mr-1"></i> Premium</div>
-                        <div class="text-xs text-purple-600 dark:text-purple-300">Expire le {{ current_user.subscription_expires.strftime('%d/%m/%Y') if current_user.subscription_expires }}</div>
+                    <div class="bg-gradient-to-r from-primary-100 to-pink-100 dark:from-primary-900/30 dark:to-green-900/30 rounded-lg p-3">
+                        <div class="text-sm font-medium text-primary-800 dark:text-primary-200"><i class="fas fa-crown mr-1"></i> Premium</div>
+                        <div class="text-xs text-primary-600 dark:text-primary-300">Expire le {{ current_user.subscription_expires.strftime('%d/%m/%Y') if current_user.subscription_expires }}</div>
                     </div>
                 {% else %}
                     <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
@@ -614,42 +614,5 @@
     .dark .suggestions-container {
         background: #374151;
         border-color: #4B5563;
-    }
-
-    .suggestion-item {
-        padding: 0.75rem;
-        border-bottom: 1px solid #F3F4F6;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-
-    .suggestion-item .font-medium {
-        margin-bottom: 0.25rem;
-        font-size: 0.95rem;
-    }
-
-    .suggestion-item .text-sm {
-        font-size: 0.85rem;
-        color: #6B7280;
-    }
-
-    .suggestion-item:hover {
-        background-color: #F9FAFB;
-    }
-
-    .suggestion-item:last-child {
-        border-bottom: none;
-    }
-
-    .dark .suggestion-item {
-        border-bottom-color: #4B5563;
-    }
-
-    .dark .suggestion-item:hover {
-        background-color: #4B5563;
-    }
-
-    .dark .suggestion-item .text-sm {
-        color: #9CA3AF;
     }
 </style>
