@@ -79,6 +79,7 @@ def register_blueprints(app):
     from backend.routes.api import api_bp
     from backend.routes.maps import maps_bp
     #from backend.routes.subscription import subscription_bp
+    from backend.routes.subscription import register_subscription_routes
     
     # Enregistrement
     app.register_blueprint(main_bp)
@@ -86,6 +87,9 @@ def register_blueprints(app):
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(maps_bp, url_prefix='/maps')
     #app.register_blueprint(subscription_bp, url_prefix='/api/subscription')
+
+    # Enregistrer les routes d'abonnement
+    register_subscription_routes(app)
 
 def register_error_handlers(app):
     """Gestionnaires d'erreurs personnalisés"""
