@@ -104,7 +104,7 @@ source venv/bin/activate
 ### 3. Installer les Dépendances
 
 ```bash
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 ### 4. Configuration des Variables d'Environnement
@@ -124,6 +124,9 @@ MYSQL_USER=root
 MYSQL_PASSWORD=
 MYSQL_DATABASE=smart_route_db
 
+# HERE Maps API
+HERE_API_KEY=WSmHMi5J0XCGO2A7A84BuSvMsnEwzlEq9Heq9EPnnIE
+
 # Google OAuth 2.0
 GOOGLE_CLIENT_ID=641584917672-96th5oiev32586ghsfk8g6j1lvgdt0l2.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=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
@@ -138,39 +141,6 @@ APP_URL=http://localhost:5000
 # Logs
 LOG_LEVEL=INFO
 ```
-
-
-## 🚀 Initialisation
-
-### 1. Initialiser la Base de Données
-
-```bash
-python app.py init-db
-```
-
-Cette commande va :
-- Créer toutes les tables nécessaires
-- Insérer les données de base (pays, paramètres)
-- Créer un utilisateur administrateur (optionnel)
-
-### 2. Charger les Données de Base (optionnel)
-
-```bash
-python app.py load-countries
-python app.py load-sample-data
-```
-
-### 3. Vérifier la Configuration
-
-```bash
-python app.py check-config
-```
-
-Cette commande vérifie :
-- La connectivité à la base de données
-- La validité de la clé API HERE Maps
-- Les permissions des dossiers
-- La configuration des services
 
 ## ▶️ Exécution
 
@@ -280,7 +250,7 @@ documentation/
 Les **vidéos de démonstration** et tutoriels sont disponibles dans :
 ```
 demo/
-└── WaziGo.mp4            # Présentation générale
+└── WaziGo_Presentation.mp4            # Présentation générale
 ```
 
 ## 🐛 Dépannage
@@ -338,7 +308,7 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
 ## 📞 Support
 
-- **Email** : support@WaziGo.app
+- **Email** : wekobrayan163@gmail.com
 - **Documentation** : `documentation/`
 - **Issues** : GitHub Issues
 - **Discussions** : GitHub Discussions
@@ -360,7 +330,7 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 2. Configuration
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 
 # 4. Initialisation & Lancement
 python run.py
