@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, session, current_app
+from flask import Blueprint, request, jsonify, session, current_app, redirect, url_for
 from backend.models import User, SavedRoute, RouteHistory, UserAnalytics, Feedback, db
 from backend.services.here_api import HereApiService
 from backend.services.route_optimizer import RouteOptimizer
@@ -502,4 +502,33 @@ def complete_navigation(route_id):
         
     except Exception as e:
         current_app.logger.error(f'Erreur fin navigation: {str(e)}')
-        return jsonify({'error': 'Erreur lors de la finalisation'}), 500
+        return jsonify({'error': 'Erreur lors de la finalisation'}), 500  
+
+@api_bp.route('/advertisements', methods=['GET'])
+def get_advertisements():
+    """Route de fallback pour les publicités."""
+    try:
+        # Rediriger vers la route subscription
+        return redirect(url_for('subscription_api.get_advertisements'))
+    except Exception as e:
+        return jsonify({
+            'success': True,
+            'ads': [],
+            'message': 'No ads available'
+        })
+
+@api_bp.route('/advertisements/impression', methods=['GET', 'POST'])
+def track_advertisement_impression():
+    """Route de fallback pour tracking impressions."""
+    try:
+        return redirect(url_for('subscription_api.track_ad_impression'))
+    except Exception as e:
+        return jsonify({'success': True})
+
+@api_bp.route('/advertisements/click', methods=['POST'])  
+def track_advertisement_click():
+    """Route de fallback pour tracking clics."""
+    try:
+        return redirect(url_for('subscription_api.track_ad_click'))
+    except Exception as e:
+        return jsonify({'success': True})

@@ -5,6 +5,7 @@ class UserAnalytics(DatabaseMixin, db.Model):
     """Modèle pour les analytics des utilisateurs"""
     
     __tablename__ = 'user_analytics'
+    __table_args__ = {'extend_existing': True}
     
     # Relation avec l'utilisateur
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)

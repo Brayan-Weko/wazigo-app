@@ -5,6 +5,7 @@ class SavedRoute(DatabaseMixin, db.Model):
     """Modèle pour les itinéraires sauvegardés par les utilisateurs"""
     
     __tablename__ = 'saved_routes'
+    __table_args__ = {'extend_existing': True}
     
     # Relation avec l'utilisateur
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)

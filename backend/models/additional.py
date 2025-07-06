@@ -5,6 +5,7 @@ class GuestSession(DatabaseMixin, db.Model):
     """Modèle pour les sessions d'utilisateurs invités"""
     
     __tablename__ = 'guest_sessions'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.String(250), primary_key=True)  # UUID
     ip_address = db.Column(db.String(45), nullable=False)
@@ -32,6 +33,7 @@ class Feedback(DatabaseMixin, db.Model):
     """Modèle pour les retours utilisateurs"""
     
     __tablename__ = 'feedback'
+    __table_args__ = {'extend_existing': True}
     
     # Relations
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)

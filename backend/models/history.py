@@ -6,6 +6,7 @@ class RouteHistory(DatabaseMixin, db.Model):
     """Modèle pour l'historique des trajets effectués"""
     
     __tablename__ = 'route_history'
+    __table_args__ = {'extend_existing': True}
     
     # Relations
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)

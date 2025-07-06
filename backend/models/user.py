@@ -7,6 +7,7 @@ class User(DatabaseMixin, db.Model):
     """Modèle pour les utilisateurs de l'application"""
     
     __tablename__ = 'users'
+    __table_args__ = {'extend_existing': True}
     
     # Colonnes principales
     google_id = db.Column(db.String(250), unique=True, nullable=True, index=True)
@@ -28,6 +29,7 @@ class User(DatabaseMixin, db.Model):
     analytics = db.relationship('UserAnalytics', backref='user', uselist=False, cascade='all, delete-orphan')
     feedback = db.relationship('Feedback', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     subscription = db.relationship('UserSubscription', back_populates='user', uselist=False, cascade='all, delete-orphan')
+    #subscription = db.relationship('UserSubscription', backref='user', uselist=False, cascade='all, delete-orphan')
     
     def __init__(self, email, name, google_id=None, avatar_url=None):
         self.email = email

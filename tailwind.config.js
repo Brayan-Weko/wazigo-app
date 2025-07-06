@@ -9,16 +9,16 @@ module.exports = {
         extend: {
             colors: {
                 primary: {
-                    DEFAULT: '#6ee7b7', // Vert moyen (forme principale) - Green Apple
-                    50: '#e6fff8',      // Fond (menthe pâle) - Light Mint
-                    100: '#98f5e1',     // Vert clair (route - "W") - Seafoam
-                    200: '#6ee7b7',     // Vert moyen
+                    DEFAULT: '#6ee7b7',
+                    50: '#e6fff8',
+                    100: '#98f5e1',
+                    200: '#6ee7b7',
                     300: '#47d6aa',
                     400: '#28c795',
                     500: '#10b981',
                     600: '#059669',
-                    700: '#047857',     // Vert foncé (pin) - Deep Teal
-                    800: '#065f46',     // Texte vert foncé (WaziGo) - Pine Green
+                    700: '#047857',
+                    800: '#065f46',
                     900: '#064e3b'
                 },
                 gray: {

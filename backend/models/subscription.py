@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 class SubscriptionPlan(DatabaseMixin, db.Model):
     """Plans d'abonnement disponibles."""
     __tablename__ = 'subscription_plans'
+    __table_args__ = {'extend_existing': True}
 
     # Informations générales
     name = db.Column(db.String(50), nullable=False, unique=True)  # 'free', 'premium'
@@ -76,6 +77,7 @@ class SubscriptionPlan(DatabaseMixin, db.Model):
 class UserSubscription(DatabaseMixin, db.Model):
     """Abonnement d'un utilisateur."""
     __tablename__ = 'user_subscriptions'
+    __table_args__ = {'extend_existing': True}
 
     # Relations
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -103,6 +105,7 @@ class UserSubscription(DatabaseMixin, db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relations
+    #user = relationship('User', backref='subscription')
     user = relationship('User', back_populates='subscription')
     plan = relationship('SubscriptionPlan', back_populates='subscriptions')
 
@@ -198,6 +201,7 @@ class UserSubscription(DatabaseMixin, db.Model):
 class Advertisement(DatabaseMixin, db.Model):
     """Publicités pour utilisateurs gratuits."""
     __tablename__ = 'advertisements'
+    __table_args__ = {'extend_existing': True}
 
     # Contenu publicitaire
     title = db.Column(db.String(200), nullable=False)

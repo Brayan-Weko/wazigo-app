@@ -17,7 +17,7 @@
         <div class="flex justify-between items-center mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                    🗺️ Recherche d'itinéraire intelligent
+                    <i class="fas fa-map-marked-alt mr-2"></i> Recherche d'itinéraire intelligent
                 </h1>
                 <p class="text-gray-600 dark:text-gray-300">
                     Trouvez le meilleur chemin avec l'IA
@@ -33,14 +33,14 @@
                     </div>
                 {% elif current_user.subscription_type == 'premium' %}
                     <div class="bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-lg p-3">
-                        <div class="text-sm font-medium text-purple-800 dark:text-purple-200">👑 Premium</div>
+                        <div class="text-sm font-medium text-purple-800 dark:text-purple-200"><i class="fas fa-crown mr-1"></i> Premium</div>
                         <div class="text-xs text-purple-600 dark:text-purple-300">Expire le {{ current_user.subscription_expires.strftime('%d/%m/%Y') if current_user.subscription_expires }}</div>
                     </div>
                 {% else %}
                     <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
                         <div class="text-sm font-medium text-gray-800 dark:text-gray-200">Mode Gratuit</div>
                         <button onclick="openUpgradeModal()" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">
-                            ⬆️ Passer au Premium
+                            <i class="fas fa-arrow-up mr-1"></i> Passer au Premium
                         </button>
                     </div>
                 {% endif %}
@@ -55,7 +55,7 @@
                         <!-- Country Selection -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                🌍 Sélectionnez votre pays
+                                <i class="fas fa-globe mr-2"></i>Sélectionnez votre pays
                             </label>
                             <div class="relative">
                                 <select id="country-select" name="country" class="input-field pr-10" required onchange="onCountryChange()">
@@ -70,14 +70,14 @@
                             <!-- Quick location button -->
                             <button type="button" onclick="detectLocation()" 
                                     class="mt-2 inline-flex items-center px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">
-                                📍 Détecter ma position
+                                <i class="fas fa-map-marker-alt mr-1"></i> Détecter ma position
                             </button>
                         </div>
 
                         <!-- Origin Selection -->
                         <div id="origin-section" style="display: none;">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                🚀 Point de départ
+                                <i class="fas fa-rocket mr-2"></i>Point de départ
                             </label>
                             
                             <!-- Selection method tabs -->
@@ -85,22 +85,22 @@
                                 <button type="button" onclick="setLocationMethod('origin', 'search')" 
                                         class="location-method-btn active flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
                                         data-method="search">
-                                    🔍 Rechercher
+                                    <i class="fas fa-search mr-1"></i> Rechercher
                                 </button>
                                 <button type="button" onclick="setLocationMethod('origin', 'favorites')" 
                                         class="location-method-btn flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
                                         data-method="favorites">
-                                    ⭐ Favoris
+                                    <i class="fas fa-star mr-1"></i> Favoris
                                 </button>
                                 <button type="button" onclick="setLocationMethod('origin', 'map')" 
                                         class="location-method-btn flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
                                         data-method="map">
-                                    🗺️ Carte
+                                    <i class="fas fa-map mr-1"></i> Carte
                                 </button>
                                 <button type="button" onclick="setLocationMethod('origin', 'coordinates')" 
                                         class="location-method-btn flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
                                         data-method="coordinates">
-                                    📍 GPS
+                                    <i class="fas fa-map-marker-alt mr-1"></i> GPS
                                 </button>
                             </div>
 
@@ -154,7 +154,7 @@
                                 </div>
                                 <button type="button" onclick="validateCoordinates('origin')" 
                                         class="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                                    ✓ Valider les coordonnées
+                                    <i class="fas fa-check mr-1"></i> Valider les coordonnées
                                 </button>
                             </div>
                         </div>
@@ -162,7 +162,7 @@
                         <!-- Destination Selection (Same structure as Origin) -->
                         <div id="destination-section" style="display: none;">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                🎯 Point d'arrivée
+                                <i class="fas fa-bullseye mr-2"></i>Point d'arrivée
                             </label>
                             
                             <!-- Same structure as origin -->
@@ -170,22 +170,22 @@
                                 <button type="button" onclick="setLocationMethod('destination', 'search')" 
                                         class="location-method-btn active flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
                                         data-method="search">
-                                    🔍 Rechercher
+                                    <i class="fas fa-search mr-1"></i> Rechercher
                                 </button>
                                 <button type="button" onclick="setLocationMethod('destination', 'favorites')" 
                                         class="location-method-btn flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
                                         data-method="favorites">
-                                    ⭐ Favoris
+                                    <i class="fas fa-star mr-1"></i> Favoris
                                 </button>
                                 <button type="button" onclick="setLocationMethod('destination', 'map')" 
                                         class="location-method-btn flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
                                         data-method="map">
-                                    🗺️ Carte
+                                    <i class="fas fa-map mr-1"></i> Carte
                                 </button>
                                 <button type="button" onclick="setLocationMethod('destination', 'coordinates')" 
                                         class="location-method-btn flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
                                         data-method="coordinates">
-                                    📍 GPS
+                                    <i class="fas fa-map-marker-alt mr-1"></i> GPS
                                 </button>
                             </div>
 
@@ -235,7 +235,7 @@
                                 </div>
                                 <button type="button" onclick="validateCoordinates('destination')" 
                                         class="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                                    ✓ Valider les coordonnées
+                                    <i class="fas fa-check mr-1"></i> Valider les coordonnées
                                 </button>
                             </div>
                         </div>
@@ -244,7 +244,7 @@
                         <div id="advanced-options" style="display: none;">
                             <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
                                 <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                                    ⚙️ Options avancées
+                                    <i class="fas fa-cog mr-2"></i>Options avancées
                                 </h3>
 
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -254,12 +254,12 @@
                                             Type d'itinéraire
                                         </label>
                                         <select name="route_type" class="input-field">
-                                            <option value="fastest">⚡ Le plus rapide</option>
-                                            <option value="shortest">📏 Le plus court</option>
-                                            <option value="balanced">⚖️ Équilibré</option>
+                                            <option value="fastest"><i class="fas fa-bolt mr-1"></i> Le plus rapide</option>
+                                            <option value="shortest"><i class="fas fa-ruler mr-1"></i> Le plus court</option>
+                                            <option value="balanced"><i class="fas fa-balance-scale mr-1"></i> Équilibré</option>
                                             {% if current_user.subscription_type == 'premium' %}
-                                            <option value="eco">🌱 Éco-responsable</option>
-                                            <option value="scenic">🏞️ Panoramique</option>
+                                            <option value="eco"><i class="fas fa-leaf mr-1"></i> Éco-responsable</option>
+                                            <option value="scenic"><i class="fas fa-mountain mr-1"></i> Panoramique</option>
                                             {% endif %}
                                         </select>
                                     </div>
@@ -281,20 +281,20 @@
                                     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                                         <label class="flex items-center">
                                             <input type="checkbox" name="avoid_tolls" class="checkbox">
-                                            <span class="ml-2 text-sm">💰 Péages</span>
+                                            <span class="ml-2 text-sm"><i class="fas fa-money-bill-wave mr-1"></i>Péages</span>
                                         </label>
                                         <label class="flex items-center">
                                             <input type="checkbox" name="avoid_highways" class="checkbox">
-                                            <span class="ml-2 text-sm">🛣️ Autoroutes</span>
+                                            <span class="ml-2 text-sm"><i class="fas fa-road mr-1"></i>Autoroutes</span>
                                         </label>
                                         <label class="flex items-center">
                                             <input type="checkbox" name="avoid_ferries" class="checkbox">
-                                            <span class="ml-2 text-sm">⛴️ Ferries</span>
+                                            <span class="ml-2 text-sm"><i class="fas fa-ship mr-1"></i>Ferries</span>
                                         </label>
                                         {% if current_user.subscription_type == 'premium' %}
                                         <label class="flex items-center">
                                             <input type="checkbox" name="avoid_unpaved" class="checkbox">
-                                            <span class="ml-2 text-sm">🏕️ Non pavées</span>
+                                            <span class="ml-2 text-sm"><i class="fas fa-tree mr-1"></i>Non pavées</span>
                                         </label>
                                         {% endif %}
                                     </div>
@@ -336,7 +336,7 @@
                 <!-- Quick Access -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                        🚀 Accès rapide
+                        <i class="fas fa-bolt mr-2"></i>Accès rapide
                     </h3>
                     
                     <!-- Recent searches -->
@@ -360,7 +360,7 @@
                 {% if current_user.is_anonymous or current_user.subscription_type != 'premium' %}
                 <div class="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl shadow-lg p-6 border border-purple-200 dark:border-purple-800">
                     <h3 class="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-4">
-                        👑 Passez au Premium
+                        <i class="fas fa-crown mr-2"></i>Passez au Premium
                     </h3>
                     
                     <div class="space-y-3 text-sm">
@@ -390,7 +390,7 @@
                         <div class="text-2xl font-bold text-purple-900 dark:text-purple-100">2$ / mois</div>
                         <div class="text-xs text-purple-600 dark:text-purple-400 mb-3">≈ 1 200 FCFA</div>
                         <button onclick="openUpgradeModal()" class="btn-primary w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                            🚀 Essayer Premium
+                            <i class="fas fa-rocket mr-2"></i> Essayer Premium
                         </button>
                     </div>
                 </div>
@@ -406,7 +406,7 @@
                 <!-- Tips and tricks -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                        💡 Astuces
+                        <i class="fas fa-lightbulb mr-2"></i>Astuces
                     </h3>
                     
                     <div class="space-y-3 text-sm text-gray-600 dark:text-gray-300">
@@ -441,7 +441,7 @@
         <div class="p-6">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
-                    📍 Sélectionner un lieu sur la carte
+                    <i class="fas fa-map-marker-alt mr-2"></i>Sélectionner un lieu sur la carte
                 </h3>
                 <button onclick="closeMapSelector()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                     <i class="fas fa-times text-xl"></i>
@@ -495,8 +495,8 @@
         {% endif %}
         
         // Load user's recent searches and favorites
-        loadRecentSearches();
-        loadFavoriteRoutes();
+        //loadRecentSearches();
+        //loadFavoriteRoutes();
     });
 
     // Form submission
