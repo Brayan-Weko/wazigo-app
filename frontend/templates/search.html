@@ -562,6 +562,23 @@
 {% endblock %}
 
 <style>
+    .modal-close-btn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        padding: 0.5rem;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+    }
+
+    .modal-close-btn:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .dark .modal-close-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
     .location-method-btn {
         color: #6B7280;
     }
@@ -606,6 +623,16 @@
         transition: background-color 0.2s;
     }
 
+    .suggestion-item .font-medium {
+        margin-bottom: 0.25rem;
+        font-size: 0.95rem;
+    }
+
+    .suggestion-item .text-sm {
+        font-size: 0.85rem;
+        color: #6B7280;
+    }
+
     .suggestion-item:hover {
         background-color: #F9FAFB;
     }
@@ -620,5 +647,9 @@
 
     .dark .suggestion-item:hover {
         background-color: #4B5563;
+    }
+
+    .dark .suggestion-item .text-sm {
+        color: #9CA3AF;
     }
 </style>

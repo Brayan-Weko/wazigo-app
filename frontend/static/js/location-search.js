@@ -7,6 +7,7 @@ class LocationSearchManager {
         this.currentMarker = null;
         this.selectingFor = null; // 'origin' ou 'destination'
         this.searchTimeouts = {};
+        let lastNominatimRequest = 0;
     }
 
     initialize() {
@@ -62,8 +63,25 @@ class LocationSearchManager {
             }
         });
     }
+    
+    async throttledNominatimRequest(url) {
+        // Respecter la politique de rate limiting de Nominatim (1 requête/seconde)
+        const now = Date.now();
+        const timeSinceLast = now - this.lastNominatimRequest;
+        
+        if (timeSinceLast < 1000) {
+            await new Promise(resolve => setTimeout(resolve, 1000 - timeSinceLast));
+        }
+        
+        this.lastNominatimRequest = Date.now();
+        return fetch(url, {
+            headers: {
+                'User-Agent': 'YourAppName/1.0 (your@email.com)'
+            }
+        });
+    }
 
-    async searchLocations(query, type) {
+    /*async searchLocations(query, type) {
         this.selectedCountry = window.CountryManager?.getSelectedCountry();
 
         if (!this.selectedCountry) {
@@ -84,6 +102,74 @@ class LocationSearchManager {
             console.error('Search error:', error);
             this.showSuggestionError(type, 'Erreur de recherche');
         }
+    }*/
+    
+    async searchLocations(query, type) {
+        this.selectedCountry = window.CountryManager?.getSelectedCountry();
+
+        if (!this.selectedCountry) {
+            this.showSuggestionError(type, 'Veuillez d\'abord sélectionner un pays');
+            return;
+        }
+
+        try {
+            // Utilisation de Nominatim pour la recherche
+            const response = await this.throttledNominatimRequest(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=${this.selectedCountry.code}&limit=8`
+            );
+            
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+                // Filtrer une seconde fois au cas où Nominatim retournerait des résultats hors pays
+                const filteredData = data.filter(item => 
+                    item.address?.country_code?.toLowerCase() === this.selectedCountry.code.toLowerCase()
+                );
+
+                const suggestions = data.map(item => ({
+                    title: this.formatLocationName(item),
+                    label: this.formatLocationLabel(item),
+                    position: {
+                        lat: parseFloat(item.lat),
+                        lng: parseFloat(item.lon)
+                    }
+                }));
+                this.displaySuggestions(suggestions, type);
+            } else {
+                this.showSuggestionError(type, 'Aucun résultat trouvé');
+            }
+        } catch (error) {
+            console.error('Search error:', error);
+            this.showSuggestionError(type, 'Erreur de recherche');
+        }
+    }
+
+    formatLocationName(item) {
+        // Amélioration de l'affichage des noms
+        const parts = [];
+        if (item.name) parts.push(item.name);
+        if (item.address?.city) parts.push(item.address.city);
+        if (item.address?.state) parts.push(item.address.state);
+        
+        return parts.length > 0 
+            ? parts.join(', ') 
+            : item.display_name.split(',').slice(0, 3).join(', ');
+    }
+
+    formatLocationLabel(item) {
+        // Format plus lisible pour les étiquettes
+        const address = item.address;
+        if (!address) return item.display_name;
+        
+        const parts = [];
+        if (address.road) parts.push(address.road);
+        if (address.neighbourhood) parts.push(address.neighbourhood);
+        if (address.city_district) parts.push(address.city_district);
+        if (address.city) parts.push(address.city);
+        
+        return parts.length > 0 
+            ? parts.join(', ') 
+            : item.display_name.split(',').slice(0, 2).join(', ');
     }
 
     displaySuggestions(suggestions, type) {
@@ -368,7 +454,7 @@ class LocationSearchManager {
         }
     }
 
-    async reverseGeocodeForMap(lat, lng) {
+    /*async reverseGeocodeForMap(lat, lng) {
         try {
             const response = await fetch('/maps/reverse-geocode', {
                 method: 'POST',
@@ -399,6 +485,40 @@ class LocationSearchManager {
                     lat: parseFloat(lat),
                     lng: parseFloat(lng),
                     country: this.selectedCountry?.code
+                };
+            }
+        } catch (error) {
+            console.error('Map reverse geocoding error:', error);
+            this.mapSelectedLocation = {
+                address: `Position (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+                label: `Coordonnées: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+                lat: parseFloat(lat),
+                lng: parseFloat(lng),
+                country: this.selectedCountry?.code
+            };
+        }
+    }*/
+
+    async reverseGeocodeForMap(lat, lng) {
+        try {
+            const response = await this.throttledNominatimRequest(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
+            );
+            
+            const data = await response.json();
+            
+            if (data) {
+                const address = data.display_name || `Position (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+                
+                document.getElementById('selected-location-info').textContent = `📍 ${address}`;
+                
+                // Stocker les données pour confirmation
+                this.mapSelectedLocation = {
+                    address: address,
+                    label: address,
+                    lat: parseFloat(lat),
+                    lng: parseFloat(lng),
+                    country: this.selectedCountry?.code || data.address?.country_code?.toUpperCase()
                 };
             }
         } catch (error) {
@@ -668,14 +788,149 @@ class LocationSearchManager {
     }
 
     showLocationChoiceModal(locationData) {
-        const choice = confirm(
-            `Utiliser "${locationData.address}" comme :\n\n` +
-            `OK = Point de départ\n` +
-            `Annuler = Point d'arrivée`
-        );
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
+                <h3 class="text-lg font-medium mb-4">Utiliser "${locationData.address}" comme :</h3>
+                <div class="flex space-x-4">
+                    <button id="use-as-origin" class="btn-primary flex-1">
+                        <i class="fas fa-rocket mr-2"></i> Point de départ
+                    </button>
+                    <button id="use-as-destination" class="btn-secondary flex-1">
+                        <i class="fas fa-bullseye mr-2"></i> Point d'arrivée
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Gestion des clics
+        modal.querySelector('#use-as-origin').addEventListener('click', () => {
+            this.handleRecentSelection(locationData, 'origin');
+            document.body.removeChild(modal);
+        });
+
+        modal.querySelector('#use-as-destination').addEventListener('click', () => {
+            this.handleRecentSelection(locationData, 'destination');
+            document.body.removeChild(modal);
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+
+        document.body.appendChild(modal);
+    }
+
+    handleRecentSelection(locationData, type) {
+
+        const currentCountry = window.CountryManager?.getSelectedCountry();
+    
+        if (currentCountry && locationData.country && 
+            locationData.country.toLowerCase() !== currentCountry.code.toLowerCase()) {
+            
+            // Afficher un modal pour gérer le conflit de pays
+            this.showCountryConflictModal(locationData, type);
+            return;
+        }
         
-        const type = choice ? 'origin' : 'destination';
-        this.selectLocation(locationData, type);
+        // Vérifier si on sélectionne une destination sans origine
+        if (type === 'destination' && !this.selectedOrigin) {
+            showAlert('Veuillez d\'abord sélectionner un point de départ', 'error');
+            return;
+        }
+
+        // Charger le pays si nécessaire
+        if (!this.selectedCountry && locationData.country) {
+            const countrySelect = document.getElementById('country-select');
+            const countryOption = Array.from(countrySelect.options).find(
+                opt => opt.value === locationData.country
+            );
+            
+            if (countryOption) {
+                countrySelect.value = locationData.country;
+                window.CountryManager.onCountryChange();
+            }
+        }
+
+        // Vérifier que le pays correspond si origine déjà sélectionnée
+        if (type === 'destination' && this.selectedOrigin && 
+            this.selectedOrigin.country !== locationData.country) {
+            showAlert('Le point d\'arrivée doit être dans le même pays que le point de départ', 'error');
+            return;
+        }
+
+        // Sélectionner le lieu
+        const location = {
+            title: locationData.address,
+            label: locationData.label || locationData.address,
+            position: {
+                lat: parseFloat(locationData.lat),
+                lng: parseFloat(locationData.lng)
+            },
+            country: locationData.country
+        };
+
+        this.selectLocation(location, type);
+        showAlert(`Position définie comme ${type === 'origin' ? 'départ' : 'arrivée'}`, 'success');
+    }
+
+    showCountryConflictModal(locationData, type) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium">Conflit de pays</h3>
+                    <button class="text-gray-500 hover:text-gray-700" onclick="this.closest('div[class*=\"fixed\"]').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <p class="mb-4">Le lieu sélectionné n'est pas dans le pays actuellement choisi. Que souhaitez-vous faire ?</p>
+                <div class="flex flex-col space-y-3">
+                    <button class="btn-primary" onclick="window.LocationSearch.resolveCountryConflict('changeCountry', ${JSON.stringify(locationData)}, '${type}')">
+                        <i class="fas fa-globe-americas mr-2"></i> Changer de pays pour ce lieu
+                    </button>
+                    <button class="btn-secondary" onclick="window.LocationSearch.resolveCountryConflict('changeLocation', ${JSON.stringify(locationData)}, '${type}')">
+                        <i class="fas fa-map-marker-alt mr-2"></i> Choisir un autre lieu
+                    </button>
+                    <button class="btn-gray" onclick="this.closest('div[class*=\"fixed\"]').remove()">
+                        <i class="fas fa-times mr-2"></i> Annuler
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    resolveCountryConflict(action, locationData, type) {
+        const modal = document.querySelector('div[class*="fixed"]');
+        if (modal) modal.remove();
+
+        if (action === 'changeCountry') {
+            // Changer le pays
+            const countrySelect = document.getElementById('country-select');
+            countrySelect.value = locationData.country.toLowerCase();
+            window.CountryManager.onCountryChange();
+            
+            // Sélectionner le lieu après un petit délai
+            setTimeout(() => {
+                this.selectLocation({
+                    title: locationData.address,
+                    label: locationData.label || locationData.address,
+                    position: {
+                        lat: parseFloat(locationData.lat),
+                        lng: parseFloat(locationData.lng)
+                    },
+                    country: locationData.country
+                }, type);
+            }, 300);
+        } else if (action === 'changeLocation') {
+            // Ouvrir le sélecteur de carte pour choisir un nouveau lieu
+            this.openMapSelector(type);
+        }
     }
 }
 
@@ -703,6 +958,7 @@ window.openMapSelector = (type) => window.LocationSearch.openMapSelector(type);
 window.closeMapSelector = () => window.LocationSearch.closeMapSelector();
 window.confirmMapSelection = () => window.LocationSearch.confirmMapSelection();
 window.validateCoordinates = (type) => window.LocationSearch.validateCoordinates(type);
+window.resolveCountryConflict = (action, locationData, type) => window.LocationSearch.resolveCountryConflict(action, JSON.parse(locationData), type);
 
 // Initialisation automatique
 document.addEventListener('DOMContentLoaded', function() {
