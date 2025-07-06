@@ -18,15 +18,12 @@ class RouteService:
     def find_optimal_routes(self, origin, destination, **kwargs):
         """
         Trouver les itinéraires optimaux.
-        
-        Args:
-            origin (dict): Informations sur l'origine
-            destination (dict): Informations sur la destination
-            **kwargs: Options de recherche
         """
         start_time = time.time()
         
         try:
+            current_app.logger.info(f"RouteService: Searching routes from {origin} to {destination}")
+            
             # Validation des paramètres
             if not self._validate_locations(origin, destination):
                 return {
@@ -39,11 +36,13 @@ class RouteService:
             
             # Préparer les paramètres pour HERE Maps
             here_params = self._prepare_here_params(origin, destination, **kwargs)
+            current_app.logger.info(f"HERE params prepared: {here_params}")
             
-            # Appel au service HERE Maps - CORRECTION: utiliser calculate_routes (pluriel)
+            # Appel au service HERE Maps
             here_result = self.here_service.calculate_routes(here_params)
             
             if not here_result or 'routes' not in here_result:
+                current_app.logger.error("No routes returned from HERE API")
                 return {
                     'success': False,
                     'error': {
@@ -53,15 +52,24 @@ class RouteService:
                     'query_time': time.time() - start_time
                 }
             
+            current_app.logger.info(f"HERE returned {len(here_result['routes'])} routes")
+            
             # Traiter et enrichir les résultats avec l'optimiseur
             raw_routes = here_result['routes']
             optimized_routes = self.route_optimizer.optimize_routes(raw_routes, kwargs)
             
+            current_app.logger.info(f"Optimized to {len(optimized_routes)} routes")
+            
             # Analyser le trafic pour chaque route
-            for route in optimized_routes:
-                traffic_analysis = self.traffic_analyzer.analyze_route_traffic(route.get('original_data', route))
-                route['traffic_analysis'] = traffic_analysis.get('global_analysis', {})
-                route['critical_points'] = traffic_analysis.get('critical_points', [])
+            for i, route in enumerate(optimized_routes):
+                try:
+                    traffic_analysis = self.traffic_analyzer.analyze_route_traffic(route.get('original_data', route))
+                    route['traffic_analysis'] = traffic_analysis.get('global_analysis', {})
+                    route['critical_points'] = traffic_analysis.get('critical_points', [])
+                except Exception as e:
+                    current_app.logger.warning(f"Traffic analysis failed for route {i}: {str(e)}")
+                    route['traffic_analysis'] = {}
+                    route['critical_points'] = []
             
             return {
                 'success': True,
@@ -76,7 +84,7 @@ class RouteService:
             }
             
         except Exception as e:
-            current_app.logger.error(f'Erreur RouteService: {str(e)}')
+            current_app.logger.error(f'Erreur RouteService: {str(e)}', exc_info=True)
             return {
                 'success': False,
                 'error': {

@@ -35,16 +35,17 @@ class HereApiService:
         if cache_key and cache_key in self._cache:
             cached_data, cached_time = self._cache[cache_key]
             if time.time() - cached_time < self._cache_ttl:
+                self.logger.info("Using cached data")
                 return cached_data
         
         # Ajouter la clé API
-        params['apikey'] = self.api_key
+        params_with_key = params.copy()
+        params_with_key['apikey'] = self.api_key
         
         try:
-            self.logger.info(f"Making request to: {url}")
-            self.logger.info(f"With params: {params}")
+            self.logger.info(f"Making HTTP request to: {url}")
             
-            response = self.session.get(url, params=params, timeout=timeout)
+            response = self.session.get(url, params=params_with_key, timeout=timeout)
             
             # Log de la réponse pour débogage
             self.logger.info(f"HERE API Response status: {response.status_code}")
@@ -59,27 +60,48 @@ class HereApiService:
                     if 'error' in error_data:
                         error_msg = error_data['error'].get('message', 'Unknown error')
                         self.logger.error(f"HERE API Error Message: {error_msg}")
-                except:
-                    self.logger.error(f"HERE API 400 Error - Raw response: {response.text}")
+                    elif 'notices' in error_data:
+                        for notice in error_data['notices']:
+                            self.logger.error(f"HERE API Notice: {notice}")
+                except Exception as e:
+                    self.logger.error(f"HERE API 400 Error - Raw response: {response.text[:500]}")
                 
                 return None
             
+            elif response.status_code == 401:
+                self.logger.error("HERE API 401 - Invalid API key")
+                return None
+            
+            elif response.status_code == 429:
+                self.logger.error("HERE API 429 - Rate limit exceeded")
+                return None
+            
+            # Vérifier le succès
             response.raise_for_status()
-            data = response.json()
             
-            # Mettre en cache
-            if cache_key:
-                self._cache[cache_key] = (data, time.time())
+            try:
+                data = response.json()
+                self.logger.info("HERE API request successful")
+                
+                # Mettre en cache seulement si succès
+                if cache_key and data:
+                    self._cache[cache_key] = (data, time.time())
+                
+                return data
+                
+            except json.JSONDecodeError as e:
+                self.logger.error(f"HERE API returned invalid JSON: {e}")
+                self.logger.error(f"Response content: {response.text[:500]}")
+                return None
             
-            return data
-            
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Erreur requête HERE API: {str(e)}")
-            # Log de l'URL complète pour débogage
-            self.logger.error(f"URL complète: {response.url if 'response' in locals() else 'N/A'}")
+        except requests.exceptions.Timeout as e:
+            self.logger.error(f"HERE API timeout: {str(e)}")
             return None
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Erreur décodage JSON HERE API: {str(e)}")
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"HERE API request error: {str(e)}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Unexpected error in HERE API request: {str(e)}")
             return None
     
     def calculate_routes(self, search_params: Dict) -> Optional[Dict]:
@@ -105,19 +127,17 @@ class HereApiService:
             'units': 'metric'
         }
         
-        # Heure de départ (format ISO obligatoire pour HERE v8)
+        # ✅ CORRECTION: Heure de départ avec import datetime correct
         if search_params.get('departure_time'):
             try:
-                # Vérifier si c'est déjà au format ISO
                 departure_time = search_params['departure_time']
-                if 'T' not in departure_time:
-                    # Convertir si ce n'est pas au format ISO
-                    from datetime import datetime
+                if isinstance(departure_time, str) and 'T' not in departure_time:
+                    # Essayer de parser et convertir au format ISO
                     dt = datetime.fromisoformat(departure_time)
                     departure_time = dt.isoformat()
                 params['departureTime'] = departure_time
-            except:
-                # Si erreur, utiliser l'heure actuelle
+            except (ValueError, TypeError) as e:
+                self.logger.warning(f"Erreur format departure_time: {e}, utilisation heure actuelle")
                 params['departureTime'] = datetime.now().isoformat()
         else:
             params['departureTime'] = datetime.now().isoformat()
@@ -147,12 +167,16 @@ class HereApiService:
         cache_key = f"routes_{hash(str(sorted(params.items())))}"
         
         # Faire la requête
-        self.logger.info(f"HERE API Request: {url} avec params: {params}")
+        self.logger.info(f"HERE API Request: {url}")
+        self.logger.info(f"HERE API Params: {params}")
+        
         data = self._make_request(url, params, cache_key)
         
         if data and 'routes' in data:
+            self.logger.info(f"HERE API returned {len(data['routes'])} routes")
+            
             # Enrichir les données avec les coordonnées d'origine
-            for route in data['routes']:
+            for i, route in enumerate(data['routes']):
                 route['origin_coords'] = origin_coords
                 route['destination_coords'] = destination_coords
                 
@@ -165,10 +189,12 @@ class HereApiService:
                             'delay_seconds': max(0, summary['duration'] - summary.get('typicalDuration', summary['duration'])),
                             'status': self._get_traffic_status(summary)
                         }
+                    
+                    self.logger.info(f"Route {i}: {summary.get('duration', 0)}s, {summary.get('length', 0)}m")
             
             return data
         
-        self.logger.error(f"HERE API Response: {data}")
+        self.logger.error(f"HERE API failed or returned no routes")
         return None
 
     def _get_traffic_status(self, summary: Dict) -> str:
