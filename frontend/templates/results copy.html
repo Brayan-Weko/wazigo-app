@@ -185,7 +185,6 @@
     let searchResultsData = null;
 
     function initializeResultsPage() {
-        // ✅ Récupérer les données depuis sessionStorage
         try {
             const storedResults = sessionStorage.getItem('searchResults');
             console.log('Données sessionStorage:', storedResults);
@@ -232,8 +231,10 @@
             hideLoading();
             displayRoutes(currentRoutes);
             
-            // ✅ Initialiser la carte HERE Maps
-            initializeHereMap();
+            // Initialiser la carte
+            initializeMap();
+            displayRoutesOnMap(currentRoutes);
+            selectRoute(0); // Sélectionner la première route par défaut
 
         } catch (error) {
             console.error('Erreur lors de l\'initialisation:', error);
@@ -241,141 +242,37 @@
             redirectToSearch();
         }
     }
-    
+
     function redirectToSearch() {
+        // Rediriger vers la page de recherche après 2 secondes
         setTimeout(() => {
             window.location.href = '{{ url_for("main.search") }}';
         }, 2000);
     }
-    
-    async function initializeHereMap() {
+
+    async function searchRoutes(searchParams) {
         try {
-            // Attendre que MapManager soit disponible
-            if (!window.MapManager) {
-                console.error('MapManager not available');
-                showMapError();
-                return;
-            }
-
-            mapManager = window.MapManager;
-
-            // Calculer le centre de la carte basé sur les routes
-            const mapCenter = calculateMapCenter(currentRoutes);
+            showLoading();
             
-            // Initialiser la carte
-            await mapManager.initializeMap('map-container', {
-                zoom: 12,
-                center: mapCenter
+            const response = await apiRequest('/api/search-routes', {
+                method: 'POST',
+                body: JSON.stringify(searchParams)
             });
 
-            // Préparer et afficher les routes
-            const preparedRoutes = prepareRoutesForHereMap(currentRoutes);
-            if (preparedRoutes.length > 0) {
-                displayRoutesOnMap(preparedRoutes);
-                selectRoute(0); // Sélectionner la première route
-            }
+            hideLoading();
 
-            // Écouter les événements de sélection de route depuis la carte
-            window.addEventListener('routeSelected', (event) => {
-                selectRoute(event.detail.routeIndex);
-            });
+            if (response.success && response.routes && response.routes.length > 0) {
+                currentRoutes = response.routes;
+                displayRoutes(currentRoutes);
+                displayRoutesOnMap(currentRoutes);
+                selectRoute(0); // Select first route by default
+            } else {
+                showNoResults();
+            }
 
         } catch (error) {
-            console.error('Erreur initialisation carte HERE:', error);
-            showMapError();
-        }
-    }
-
-    function calculateMapCenter(routes) {
-        if (!routes || routes.length === 0) {
-            return { lat: 3.8480, lng: 11.5021 }; // Paris par défaut
-        }
-
-        const firstRoute = routes[0];
-        if (firstRoute.origin_coords && firstRoute.destination_coords) {
-            const originLat = parseFloat(firstRoute.origin_coords.lat) || 0;
-            const originLng = parseFloat(firstRoute.origin_coords.lng) || 0;
-            const destLat = parseFloat(firstRoute.destination_coords.lat) || 0;
-            const destLng = parseFloat(firstRoute.destination_coords.lng) || 0;
-
-            return {
-                lat: (originLat + destLat) / 2,
-                lng: (originLng + destLng) / 2
-            };
-        }
-
-        return { lat: 48.8566, lng: 2.3522 };
-    }
-
-    function prepareRoutesForHereMap(routes) {
-        return routes.map((route, index) => {
-            const preparedRoute = {
-                id: route.id || `route_${index}`,
-                coordinates: [],
-                summary: {
-                    origin: null,
-                    destination: null
-                },
-                ...route
-            };
-
-            // ✅ Extraire les coordonnées depuis polyline HERE Maps
-            if (route.sections && route.sections[0] && route.sections[0].polyline) {
-                preparedRoute.coordinates = decodeHerePolyline(route.sections[0].polyline);
-            } else if (route.polyline) {
-                preparedRoute.coordinates = decodeHerePolyline(route.polyline);
-            } else if (route.original_data && route.original_data.sections) {
-                // Fallback : essayer dans original_data
-                const section = route.original_data.sections[0];
-                if (section && section.polyline) {
-                    preparedRoute.coordinates = decodeHerePolyline(section.polyline);
-                }
-            }
-
-            // Si pas de polyline, créer une ligne droite simple
-            if (preparedRoute.coordinates.length === 0) {
-                if (route.origin_coords && route.destination_coords) {
-                    preparedRoute.coordinates = [
-                        { lat: route.origin_coords.lat, lng: route.origin_coords.lng },
-                        { lat: route.destination_coords.lat, lng: route.destination_coords.lng }
-                    ];
-                }
-            }
-
-            // Définir origine et destination
-            if (route.origin_coords) {
-                preparedRoute.summary.origin = {
-                    lat: parseFloat(route.origin_coords.lat),
-                    lng: parseFloat(route.origin_coords.lng)
-                };
-            }
-
-            if (route.destination_coords) {
-                preparedRoute.summary.destination = {
-                    lat: parseFloat(route.destination_coords.lat),
-                    lng: parseFloat(route.destination_coords.lng)
-                };
-            }
-
-            return preparedRoute;
-        });
-    }
-
-    function decodeHerePolyline(polylineString) {
-        // ✅ Décodage de polyline HERE Maps (format flexible polyline)
-        if (!polylineString) return [];
-
-        try {
-            // HERE Maps utilise un format d'encodage spécifique
-            // Ici on fait une implémentation simplifiée
-            // Dans un vrai projet, utilisez la librairie HERE flexible-polyline
-            
-            // Pour l'instant, retourner un tableau vide et laisser MapManager gérer
-            console.warn('Polyline decoding not fully implemented, using fallback');
-            return [];
-        } catch (error) {
-            console.error('Erreur décodage polyline:', error);
-            return [];
+            hideLoading();
+            showError(error.message || 'Erreur lors du calcul des itinéraires');
         }
     }
 
@@ -400,7 +297,7 @@
         card.className = `route-card bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg cursor-pointer transition-all duration-200 hover:shadow-xl ${index === selectedRouteIndex ? 'selected ring-2 ring-primary-500' : ''}`;
         card.onclick = () => selectRoute(index);
 
-        // ✅ Gérer les différents formats de données de route
+        // ✅ CORRECTION: Gérer les différents formats de données de route
         let summary, score, recommendation;
         
         if (route.summary) {
@@ -408,6 +305,7 @@
         } else if (route.original_data && route.original_data.summary) {
             summary = route.original_data.summary;
         } else {
+            // Format par défaut si les données sont manquantes
             summary = {
                 duration: route.duration || route.travel_time_seconds || 0,
                 length: route.length || route.distance_meters || 0
@@ -429,11 +327,6 @@
                                 ${recommendation.title || 'Recommandé'}
                             </span>
                         ` : ''}
-                        ${index === 0 ? `
-                            <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                <i class="fas fa-star mr-1"></i> Optimal
-                            </span>
-                        ` : ''}
                     </div>
                     <div class="text-lg font-semibold text-gray-900 dark:text-white">
                         ${formatDuration(summary.duration)}
@@ -447,9 +340,9 @@
                         }
                     </div>
                 </div>
-                <div class="flex flex-col items-end space-y-2">
+                <div class="flex flex-col items-end">
                     <button onclick="event.stopPropagation(); startNavigation(${index})" 
-                            class="btn-primary text-sm">
+                            class="btn-primary text-sm mb-2">
                         <i class="fas fa-play mr-1"></i>
                         Partir
                     </button>
@@ -471,7 +364,7 @@
             ` : ''}
 
             <!-- Route info -->
-            <div class="grid grid-cols-3 gap-4 text-xs text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-200 dark:border-gray-700">
+            <div class="grid grid-cols-2 gap-4 text-xs text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-200 dark:border-gray-700">
                 <div>
                     <i class="fas fa-route mr-1"></i>
                     Route ${index + 1}
@@ -480,26 +373,10 @@
                     <i class="fas fa-star mr-1"></i>
                     Score: ${formatScore(score)}
                 </div>
-                <div>
-                    <i class="fas fa-clock mr-1"></i>
-                    ${getRouteTypeLabel(route)}
-                </div>
             </div>
         `;
 
         return card;
-    }
-
-    function getRouteTypeLabel(route) {
-        if (route.route_type) {
-            const types = {
-                'fastest': 'Rapide',
-                'shortest': 'Court',
-                'balanced': 'Équilibré'
-            };
-            return types[route.route_type] || 'Standard';
-        }
-        return 'Standard';
     }
 
     function formatDuration(seconds) {
@@ -531,22 +408,21 @@
     }
 
     function getScoreClass(score) {
-        if (!score || isNaN(score)) return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+        if (!score || isNaN(score)) return 'bg-gray-100 text-gray-800';
         
-        if (score >= 8.5) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-        if (score >= 7.0) return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-        if (score >= 5.5) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-        if (score >= 3.0) return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        if (score >= 8.5) return 'bg-green-100 text-green-800';
+        if (score >= 7.0) return 'bg-blue-100 text-blue-800';
+        if (score >= 5.5) return 'bg-yellow-100 text-yellow-800';
+        if (score >= 3.0) return 'bg-orange-100 text-orange-800';
+        return 'bg-red-100 text-red-800';
     }
-    
+
     function getTrafficClass(status) {
         switch(status?.toLowerCase()) {
             case 'free': return 'bg-green-500';
             case 'light': return 'bg-yellow-500';
             case 'moderate': return 'bg-orange-500';
             case 'heavy': return 'bg-red-500';
-            case 'severe': return 'bg-red-700';
             default: return 'bg-gray-500';
         }
     }
@@ -560,7 +436,6 @@
             'light': 'Trafic léger',
             'moderate': 'Trafic modéré',
             'heavy': 'Trafic dense',
-            'severe': 'Circulation difficile',
             'unknown': 'Trafic inconnu'
         };
         
@@ -568,7 +443,6 @@
     }
 
     function selectRoute(index) {
-        const previousIndex = selectedRouteIndex;
         selectedRouteIndex = index;
         
         // Update UI
@@ -581,127 +455,12 @@
             }
         });
 
-        // ✅ Update map if available
-        if (mapManager && mapManager.isInitialized) {
-            mapManager.selectRoute(index);
+        // Update map if available
+        if (map && currentRoutes[index]) {
+            highlightRouteOnMap(currentRoutes[index], index);
         }
 
         console.log('Route sélectionnée:', index, currentRoutes[index]);
-        
-        // Track analytics
-        if (window.trackEvent) {
-            window.trackEvent('route_selected', { 
-                index, 
-                previousIndex,
-                route_id: currentRoutes[index]?.id 
-            });
-        }
-    }
-
-    function displayRoutesOnMap(routes) {
-        if (!mapManager || !mapManager.isInitialized) {
-            console.warn('Map not initialized');
-            return;
-        }
-
-        try {
-            mapManager.displayRoutes(routes);
-            console.log('Routes affichées sur la carte HERE Maps');
-        } catch (error) {
-            console.error('Erreur affichage routes sur carte:', error);
-        }
-    }
-
-    function highlightRouteOnMap(route, index) {
-        if (!mapManager || !mapManager.isInitialized) return;
-        
-        mapManager.selectRoute(index);
-    }
-
-    function toggleTrafficLayer() {
-        if (!mapManager || !mapManager.isInitialized) {
-            showAlert('Carte non initialisée', 'error');
-            return;
-        }
-
-        try {
-            const trafficEnabled = mapManager.toggleTrafficLayer();
-            const button = document.getElementById('traffic-toggle');
-            
-            if (trafficEnabled) {
-                button.classList.add('bg-blue-600', 'text-white');
-                button.classList.remove('bg-gray-200', 'text-gray-700');
-                showAlert('Couche trafic activée', 'success');
-            } else {
-                button.classList.remove('bg-blue-600', 'text-white');
-                button.classList.add('bg-gray-200', 'text-gray-700');
-                showAlert('Couche trafic désactivée', 'info');
-            }
-        } catch (error) {
-            console.error('Erreur toggle traffic:', error);
-            showAlert('Erreur lors du basculement du trafic', 'error');
-        }
-    }
-
-    function centerMap() {
-        if (!mapManager || !mapManager.isInitialized) {
-            showAlert('Carte non initialisée', 'error');
-            return;
-        }
-
-        try {
-            if (currentRoutes && currentRoutes.length > 0) {
-                const center = calculateMapCenter(currentRoutes);
-                mapManager.centerMap(center, 12);
-                showAlert('Carte centrée', 'success');
-            }
-        } catch (error) {
-            console.error('Erreur centrage carte:', error);
-        }
-    }
-
-    async function toggleFullscreen() {
-        if (!mapManager || !mapManager.isInitialized) {
-            showAlert('Carte non initialisée', 'error');
-            return;
-        }
-
-        try {
-            const isFullscreen = await mapManager.toggleFullscreen();
-            const button = document.querySelector('button[onclick="toggleFullscreen()"]');
-            
-            if (isFullscreen) {
-                button.innerHTML = '<i class="fas fa-compress mr-1"></i> Quitter';
-            } else {
-                button.innerHTML = '<i class="fas fa-expand mr-1"></i> Plein écran';
-            }
-        } catch (error) {
-            console.error('Erreur fullscreen:', error);
-            showAlert('Erreur plein écran', 'error');
-        }
-    }
-
-    function showMapError() {
-        const mapContainer = document.getElementById('map-container');
-        if (mapContainer) {
-            mapContainer.innerHTML = `
-                <div class="flex items-center justify-center h-full bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <div class="text-center p-6">
-                        <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                            Erreur de carte
-                        </h3>
-                        <p class="text-gray-600 dark:text-gray-300 mb-4">
-                            Impossible de charger la carte interactive
-                        </p>
-                        <button onclick="initializeHereMap()" class="btn-primary">
-                            <i class="fas fa-redo mr-2"></i>
-                            Réessayer
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
     }
 
     function startNavigation(routeIndex) {
@@ -710,15 +469,15 @@
 
         // Sauvegarder la route sélectionnée
         sessionStorage.setItem('selectedRoute', JSON.stringify(route));
-        sessionStorage.setItem('navigationRoute', JSON.stringify({
-            route: route,
-            searchData: searchResultsData
-        }));
         
         showAlert('🚀 Navigation démarrée !', 'success');
-        
-        // Rediriger vers la page de navigation
-        window.location.href = '/navigation';
+
+        // Save route to history and start navigation
+        const params = new URLSearchParams({
+            route_id: route.id || `temp_${Date.now()}`
+        });
+
+        window.location.href = `{{ url_for('main.navigation') }}?${params.toString()}`;
     }
 
     function showRouteDetails(routeIndex) {
@@ -730,25 +489,21 @@
 
         content.innerHTML = generateRouteDetailsHTML(route);
         modal.classList.remove('hidden');
-        
-        // Focus sur le modal pour l'accessibilité
-        modal.focus();
     }
 
     function closeRouteDetails() {
         document.getElementById('route-details-modal').classList.add('hidden');
     }
 
+    /*
     function generateRouteDetailsHTML(route) {
-        const summary = route.summary || route.original_data?.summary || {};
+        const summary = route.summary;
         
         return `
             <div class="space-y-6">
                 <!-- Overview -->
                 <div>
-                    <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">
-                        <i class="fas fa-info-circle mr-2"></i>Aperçu de la route
-                    </h4>
+                    <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Aperçu</h4>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                             <div class="text-sm text-gray-600 dark:text-gray-300">Durée</div>
@@ -763,15 +518,15 @@
                             </div>
                         </div>
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                            <div class="text-sm text-gray-600 dark:text-gray-300">Score d'optimisation</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Score</div>
                             <div class="text-lg font-semibold text-gray-900 dark:text-white">
                                 ${formatScore(route.optimization_score)}
                             </div>
                         </div>
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                            <div class="text-sm text-gray-600 dark:text-gray-300">Conditions trafic</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Coût estimé</div>
                             <div class="text-lg font-semibold text-gray-900 dark:text-white">
-                                ${getTrafficDescription(route.traffic_analysis)}
+                                ${route.cost_estimate ? route.cost_estimate.total_cost + '€' : 'N/A'}
                             </div>
                         </div>
                     </div>
@@ -780,50 +535,93 @@
                 <!-- Traffic Analysis -->
                 ${route.traffic_analysis ? `
                     <div>
-                        <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">
-                            <i class="fas fa-road mr-2"></i>Analyse du trafic
-                        </h4>
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                            <div class="flex items-center mb-2">
-                                <div class="w-4 h-4 rounded-full ${getTrafficClass(route.traffic_analysis.status || route.traffic_analysis.level)} mr-3"></div>
-                                <span class="font-medium text-gray-900 dark:text-white">
-                                    ${getTrafficDescription(route.traffic_analysis)}
-                                </span>
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Analyse du trafic</h4>
+                        <div class="flex items-center mb-2">
+                            <div class="w-4 h-4 rounded-full ${getTrafficClass(route.traffic_analysis.level)} mr-3"></div>
+                            <span class="font-medium text-gray-900 dark:text-white">
+                                ${route.traffic_analysis.description}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-300">
+                            Fluidité : ${route.traffic_analysis.ratio.toFixed(1)}x le temps normal
+                        </p>
+                    </div>
+                ` : ''}
+
+                <!-- Environmental Impact -->
+                ${route.environmental_impact ? `
+                    <div>
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Impact environnemental</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Consommation estimée</span>
+                                <span class="font-medium">${route.environmental_impact.estimated_fuel_consumption.toFixed(1)}L</span>
                             </div>
-                            ${route.traffic_analysis.ratio ? `
-                                <p class="text-sm text-gray-600 dark:text-gray-300">
-                                    Fluidité : ${route.traffic_analysis.ratio.toFixed(1)}x le temps normal
-                                </p>
-                            ` : ''}
-                            ${route.traffic_analysis.delay_seconds ? `
-                                <p class="text-sm text-gray-600 dark:text-gray-300">
-                                    Délai estimé : +${formatDuration(route.traffic_analysis.delay_seconds)}
-                                </p>
-                            ` : ''}
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Émissions CO₂</span>
+                                <span class="font-medium">${route.environmental_impact.estimated_co2_emission.toFixed(1)}kg</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Score environnemental</span>
+                                <span class="font-medium">${route.environmental_impact.environmental_score}/10</span>
+                            </div>
                         </div>
                     </div>
                 ` : ''}
 
-                <!-- Route Specifics -->
+                <!-- Actions -->
+                <div class="flex space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button onclick="startNavigation(${selectedRouteIndex})" class="btn-primary flex-1">
+                        <i class="fas fa-play mr-2"></i>
+                        Démarrer la navigation
+                    </button>
+                    <button onclick="saveRoute(${selectedRouteIndex})" class="btn-secondary">
+                        <i class="fas fa-star mr-2"></i>
+                        Sauvegarder
+                    </button>
+                    <button onclick="shareRoute(currentRoutes[${selectedRouteIndex}])" class="btn-secondary">
+                        <i class="fas fa-share mr-2"></i>
+                        Partager
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    */
+
+    function generateRouteDetailsHTML(route) {
+        const summary = route.summary || route.original_data?.summary || {};
+        
+        return `
+            <div class="space-y-6">
+                <!-- Overview -->
                 <div>
-                    <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">
-                        <i class="fas fa-route mr-2"></i>Caractéristiques
-                    </h4>
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="text-gray-600 dark:text-gray-300">Type d'itinéraire</span>
-                            <span class="font-medium">${getRouteTypeLabel(route)}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600 dark:text-gray-300">Score d'optimisation</span>
-                            <span class="font-medium">${formatScore(route.optimization_score)}</span>
-                        </div>
-                        ${route.time_saved ? `
-                            <div class="flex justify-between">
-                                <span class="text-gray-600 dark:text-gray-300">Temps économisé</span>
-                                <span class="font-medium text-green-600">${formatDuration(route.time_saved)}</span>
+                    <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Aperçu</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Durée</div>
+                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                                ${formatDuration(summary.duration)}
                             </div>
-                        ` : ''}
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Distance</div>
+                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                                ${formatDistance(summary.length)}
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Score</div>
+                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                                ${formatScore(route.optimization_score)}
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Statut trafic</div>
+                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
+                                ${getTrafficDescription(route.traffic_analysis)}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -836,10 +634,6 @@
                     <button onclick="saveRoute(${selectedRouteIndex})" class="btn-secondary">
                         <i class="fas fa-star mr-2"></i>
                         Sauvegarder
-                    </button>
-                    <button onclick="shareRoute(${selectedRouteIndex})" class="btn-secondary">
-                        <i class="fas fa-share mr-2"></i>
-                        Partager
                     </button>
                 </div>
             </div>
@@ -858,6 +652,7 @@
         refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Actualisation...';
         refreshBtn.disabled = true;
 
+        // Rafraîchir les données
         setTimeout(() => {
             refreshBtn.innerHTML = originalContent;
             refreshBtn.disabled = false;
@@ -888,6 +683,7 @@
     }
 
     async function saveRoute(routeIndex) {
+        // Vérifier si l'utilisateur est connecté
         const userElement = document.querySelector('[data-user-authenticated]');
         const isAuthenticated = userElement?.dataset.userAuthenticated === 'true';
         
@@ -898,7 +694,7 @@
 
         const route = currentRoutes[routeIndex];
         const routeName = prompt('Nom de l\'itinéraire :', 
-            `Route optimale - ${formatDuration(route.summary?.duration || 0)}`);
+            `Route ${routeIndex + 1} - ${formatDuration(route.summary?.duration || 0)}`);
         
         if (!routeName) return;
 
@@ -924,62 +720,19 @@
 
             const data = await response.json();
             if (data.success) {
-                showAlert('✅ Itinéraire sauvegardé avec succès', 'success');
+                showAlert('Itinéraire sauvegardé avec succès', 'success');
             } else {
-                showAlert('❌ Erreur lors de la sauvegarde', 'error');
+                showAlert('Erreur lors de la sauvegarde', 'error');
             }
         } catch (error) {
             console.error('Save error:', error);
-            showAlert('❌ Erreur lors de la sauvegarde', 'error');
+            showAlert('Erreur lors de la sauvegarde', 'error');
         }
     }
 
-    async function shareRoute(routeIndex) {
-        const route = currentRoutes[routeIndex];
-        if (!route) return;
-
-        const shareData = {
-            title: 'Itinéraire SmartRoute',
-            text: `Découvrez cet itinéraire optimisé : ${formatDuration(route.summary?.duration)} pour ${formatDistance(route.summary?.length)}`,
-            url: window.location.href
-        };
-
-        try {
-            if (navigator.share) {
-                await navigator.share(shareData);
-                showAlert('Itinéraire partagé', 'success');
-            } else {
-                // Fallback : copier le lien
-                await navigator.clipboard.writeText(window.location.href);
-                showAlert('Lien copié dans le presse-papiers', 'success');
-            }
-        } catch (error) {
-            console.error('Share error:', error);
-            showAlert('Erreur lors du partage', 'error');
-        }
+    // Map functions (to be implemented in maps.js)
+    function initializeMap() {
+        // Implementation in maps.js
     }
-
-    document.addEventListener('keydown', function(e) {
-        // Fermer les modals avec Échap
-        if (e.key === 'Escape') {
-            const modals = document.querySelectorAll('.modal-overlay:not(.hidden)');
-            modals.forEach(modal => modal.classList.add('hidden'));
-        }
-        
-        // Navigation entre les routes avec les flèches
-        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-            const currentIndex = selectedRouteIndex;
-            let newIndex;
-            
-            if (e.key === 'ArrowUp') {
-                newIndex = currentIndex > 0 ? currentIndex - 1 : currentRoutes.length - 1;
-            } else {
-                newIndex = currentIndex < currentRoutes.length - 1 ? currentIndex + 1 : 0;
-            }
-            
-            selectRoute(newIndex);
-            e.preventDefault();
-        }
-    });
 </script>
 {% endblock %}
