@@ -230,7 +230,7 @@ wazigo-app/
 │
 ├── logs/               # Fichiers de logs
 ├── documentation/      # 📄 PDF de présentation
-├── demo/              # 🎥 Vidéos de démonstration
+├── demo-video/              # 🎥 Vidéos de démonstration
 ├── 📄 .env                         # Variables d'environnement
 ├── 📄 .gitignore
 ├── 📄 README.md
@@ -249,7 +249,7 @@ documentation/
 ### 🎥 Vidéos de Démonstration
 Les **vidéos de démonstration** et tutoriels sont disponibles dans :
 ```
-demo/
+demo-video/
 └── WaziGo_Presentation.mp4            # Présentation générale
 ```
 
