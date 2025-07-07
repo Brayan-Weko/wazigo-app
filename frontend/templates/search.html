@@ -582,14 +582,12 @@
             searchData.origin = window.selectedOrigin;
             searchData.destination = window.selectedDestination;
             
-            // ✅ CORRECTION: Récupérer subscription_type côté client 
             // Vérifier dans l'élément HTML ou via API
             const userElement = document.querySelector('[data-user-type]');
             searchData.subscription_type = userElement ? userElement.dataset.userType : 'guest';
             
             console.log('Data to send:', JSON.stringify(searchData, null, 2));
 
-            // ✅ CORRECTION: Appel API simplifié
             const response = await fetch('/api/search-routes', {
                 method: 'POST',
                 headers: {
@@ -598,7 +596,6 @@
                 body: JSON.stringify(searchData)
             });
 
-            // ✅ CORRECTION: Vérifier d'abord le statut de la réponse
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -609,6 +606,20 @@
             hideLoading();
 
             if (data.success) {
+                // Stocker les résultats ET passer les paramètres dans l'URL
+                sessionStorage.setItem('searchResults', JSON.stringify(data));
+                const params = new URLSearchParams({
+                    origin: window.selectedOrigin.address,
+                    destination: window.selectedDestination.address,
+                    route_type: searchData.route_type || 'fastest'
+                });
+                window.location.href = `/results?${params.toString()}`;
+            } else {
+                showAlert(data.error?.message || 'Erreur lors de la recherche', 'error');
+            }
+
+            /*
+            if (data.success) {
                 // Store search data and redirect to results
                 sessionStorage.setItem('searchResults', JSON.stringify(data));
                 window.location.href = '/results';
@@ -616,6 +627,8 @@
                 console.error('API Error:', data.error);
                 showAlert(data.error?.message || 'Erreur lors de la recherche', 'error');
             }
+            */
+           
             
         } catch (error) {
             hideLoading();

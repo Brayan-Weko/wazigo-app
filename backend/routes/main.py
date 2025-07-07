@@ -100,6 +100,11 @@ def search():
 @optional_login_required
 def results():
     """Page d'affichage des résultats d'itinéraire"""
+
+    # Vérifier d'abord si nous avons une recherche en cours
+    if 'current_search' in session:
+        search_data = session['current_search']
+        return render_template('results.html', search_data=search_data)
     
     # Récupérer les paramètres de recherche
     origin = request.args.get('origin')

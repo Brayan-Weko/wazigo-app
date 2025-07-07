@@ -1,5 +1,3 @@
-# services/route_service.py - Service de recherche d'itinéraires corrigé
-
 import time
 from datetime import datetime
 from flask import current_app
@@ -128,7 +126,6 @@ class RouteService:
     def _prepare_here_params(self, origin, destination, **kwargs):
         """Préparer les paramètres pour l'API HERE Maps."""
         
-        # CORRECTION: Formater selon ce que attend calculate_routes dans here_api.py
         params = {
             'origin': self._format_location_for_here(origin),
             'destination': self._format_location_for_here(destination),
@@ -139,11 +136,9 @@ class RouteService:
             'alternatives': kwargs.get('alternatives', 3)
         }
         
-        # ✅ CORRECTION: Ne pas passer departure_time vide
         departure_time = kwargs.get('departure_time')
         if departure_time and str(departure_time).strip():
             params['departure_time'] = str(departure_time).strip()
-        # Sinon, ne pas inclure le paramètre (HERE utilisera l'heure actuelle)
         
         # Appliquer les limites d'abonnement
         subscription_type = kwargs.get('subscription_type', 'free')
