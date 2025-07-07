@@ -8,6 +8,40 @@ import uuid
 
 main_bp = Blueprint('main', __name__)
 
+def get_score_class(score):
+    """Retourner la classe CSS selon le score d'optimisation"""
+    try:
+        score = float(score) if score is not None else 0
+        if score >= 8.5:
+            return "bg-green-100 text-green-800"
+        elif score >= 7.0:
+            return "bg-blue-100 text-blue-800"
+        elif score >= 5.5:
+            return "bg-yellow-100 text-yellow-800"
+        elif score >= 3.0:
+            return "bg-orange-100 text-orange-800"
+        else:
+            return "bg-red-100 text-red-800"
+    except (ValueError, TypeError):
+        return "bg-gray-100 text-gray-800"
+
+def get_score_label(score):
+    """Retourner le label selon le score"""
+    try:
+        score = float(score) if score is not None else 0
+        if score >= 8.5:
+            return "Excellent"
+        elif score >= 7.0:
+            return "Très bon"
+        elif score >= 5.5:
+            return "Bon"
+        elif score >= 3.0:
+            return "Moyen"
+        else:
+            return "À améliorer"
+    except (ValueError, TypeError):
+        return "Non évalué"
+    
 @main_bp.route('/')
 def index():
     """Page d'accueil de l'application"""
@@ -152,8 +186,10 @@ def history():
                          .paginate(page=page, per_page=per_page, error_out=False))
     
     return render_template('history.html', 
-                         history_pagination=history_pagination,
-                         analytics_data=analytics_data)
+                            history_pagination=history_pagination,
+                            analytics_data=analytics_data,
+                            getScoreClass=get_score_class,
+                            getScoreLabel=get_score_label)
 
 @main_bp.route('/analytics')
 @optional_login_required

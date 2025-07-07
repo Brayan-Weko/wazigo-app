@@ -23,19 +23,62 @@ def search_routes():
                 'success': False,
                 'error': {'message': 'Données manquantes', 'code': 'VALIDATION_ERROR'}
             }), 400
+        
+        # ✅ CORRECTION: Log des données reçues pour debug
+        current_app.logger.info(f"Données reçues: {data}")
 
         # Validation et nettoyage des données de localisation
         origin_data = data.get('origin')
         destination_data = data.get('destination')
+
+        current_app.logger.info(f"Origin raw: {origin_data}")
+        current_app.logger.info(f"Destination raw: {destination_data}")
         
         # Nettoyer et normaliser les données de localisation
         origin_info = normalize_location_data(origin_data)
         destination_info = normalize_location_data(destination_data)
+
+        current_app.logger.info(f"Origin normalized: {origin_info}")
+        current_app.logger.info(f"Destination normalized: {destination_info}")
         
-        if not origin_info or not destination_info:
+        # Validation plus détaillée avec messages spécifiques
+        if not origin_info:
             return jsonify({
                 'success': False,
-                'error': {'message': 'Origine et destination requises', 'code': 'VALIDATION_ERROR'}
+                'error': {
+                    'message': 'Point de départ invalide ou manquant',
+                    'code': 'INVALID_ORIGIN',
+                    'details': f'Données reçues: {origin_data}'
+                }
+            }), 400
+            
+        if not destination_info:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'message': 'Point d\'arrivée invalide ou manquant',
+                    'code': 'INVALID_DESTINATION', 
+                    'details': f'Données reçues: {destination_data}'
+                }
+            }), 400
+        
+        # Vérifier que les adresses ne sont pas vides
+        if not origin_info.get('address') or not origin_info['address'].strip():
+            return jsonify({
+                'success': False,
+                'error': {
+                    'message': 'Adresse de départ vide',
+                    'code': 'EMPTY_ORIGIN_ADDRESS'
+                }
+            }), 400
+            
+        if not destination_info.get('address') or not destination_info['address'].strip():
+            return jsonify({
+                'success': False,
+                'error': {
+                    'message': 'Adresse d\'arrivée vide',
+                    'code': 'EMPTY_DESTINATION_ADDRESS'
+                }
             }), 400
 
         # Vérifier les limites d'abonnement
@@ -117,8 +160,11 @@ def normalize_location_data(location_data):
     
     # Si c'est déjà une string (adresse simple)
     if isinstance(location_data, str):
+        address = location_data.strip()
+        if not address:
+            return None
         return {
-            'address': location_data.strip(),
+            'address': address,
             'lat': None,
             'lng': None,
             'type': 'address'
@@ -126,26 +172,34 @@ def normalize_location_data(location_data):
     
     # Si c'est un dictionnaire (données structurées)
     if isinstance(location_data, dict):
-        # Cas 1: Coordonnées GPS
-        if 'lat' in location_data and 'lng' in location_data:
+        address = location_data.get('address', '').strip()
+        lat = location_data.get('lat')
+        lng = location_data.get('lng')
+        
+        # Cas 1: Coordonnées GPS avec adresse
+        if lat is not None and lng is not None:
             try:
-                lat = float(location_data['lat'])
-                lng = float(location_data['lng'])
-                return {
-                    'address': location_data.get('address', f"{lat}, {lng}"),
-                    'lat': lat,
-                    'lng': lng,
-                    'type': 'coordinates'
-                }
+                lat_float = float(lat)
+                lng_float = float(lng)
+                # Valider les coordonnées
+                if -90 <= lat_float <= 90 and -180 <= lng_float <= 180:
+                    return {
+                        'address': address if address else f"{lat_float}, {lng_float}",
+                        'lat': lat_float,
+                        'lng': lng_float,
+                        'type': 'coordinates',
+                        'country': location_data.get('country'),
+                        'source': location_data.get('source', 'manual')
+                    }
             except (ValueError, TypeError):
                 pass
         
-        # Cas 2: Adresse avec métadonnées
-        if 'address' in location_data:
+        # Cas 2: Adresse avec métadonnées (sans coordonnées valides)
+        if address:
             return {
-                'address': str(location_data['address']).strip(),
-                'lat': location_data.get('lat'),
-                'lng': location_data.get('lng'),
+                'address': address,
+                'lat': lat,
+                'lng': lng,
                 'type': 'address',
                 'country': location_data.get('country'),
                 'source': location_data.get('source', 'manual')
@@ -153,14 +207,20 @@ def normalize_location_data(location_data):
         
         # Cas 3: Format HERE Maps/Google
         if 'title' in location_data and 'position' in location_data:
+            title = str(location_data['title']).strip()
             pos = location_data['position']
-            return {
-                'address': str(location_data['title']).strip(),
-                'lat': pos.get('lat'),
-                'lng': pos.get('lng'),
-                'type': 'geocoded'
-            }
+            if title and pos.get('lat') is not None and pos.get('lng') is not None:
+                return {
+                    'address': title,
+                    'lat': pos.get('lat'),
+                    'lng': pos.get('lng'),
+                    'type': 'geocoded'
+                }
     
+    # ✅ Log pour debug
+    current_app.logger.warning(f"Failed to normalize location data: {location_data}")
+    return None
+    """
     # Fallback: convertir en string
     try:
         return {
@@ -171,6 +231,7 @@ def normalize_location_data(location_data):
         }
     except:
         return None
+    """
 
 def check_user_limits(user_id, action):
     """Vérifier les limites d'utilisation de l'utilisateur."""
@@ -254,6 +315,9 @@ def save_route_to_history(user_id, search_params, routes):
         if not routes or len(routes) == 0:
             return
         
+        from backend.models.history import RouteHistory
+        from flask import session
+
         best_route = routes[0]
         
         # Adapter à la structure des routes optimisées
@@ -263,34 +327,81 @@ def save_route_to_history(user_id, search_params, routes):
             summary = best_route['original_data'].get('summary', {})
         else:
             summary = {}
-        
-        from backend.models.history import RouteHistory
-        
-        history_entry = RouteHistory(
-            user_id=user_id,
-            origin_address=search_params['origin']['address'],
-            origin_lat=search_params['origin'].get('lat'),
-            origin_lng=search_params['origin'].get('lng'),
-            destination_address=search_params['destination']['address'],
-            destination_lat=search_params['destination'].get('lat'),
-            destination_lng=search_params['destination'].get('lng'),
-            travel_time_seconds=summary.get('duration', 0),
-            distance_meters=summary.get('length', 0),
-            optimization_score=best_route.get('optimization_score', 0),
-            time_saved_seconds=best_route.get('time_saved', 0),
-            route_data={
-                'route_type': search_params.get('route_type', 'fastest'),
-                'alternatives_count': len(routes),
+
+        session_id = session.get('session_id', 'default_session')
+        if not session_id or session_id == 'default_session':
+            import uuid
+            session_id = str(uuid.uuid4())
+            session['session_id'] = session_id
+
+        # Préparer selected_route_data selon le format attendu
+        selected_route_data = {
+            'route_type': search_params.get('route_type', 'fastest'),
+            'summary': summary,
+            'optimization_score': best_route.get('optimization_score', 0),
+            'traffic_analysis': best_route.get('traffic_analysis', {}),
+            'alternatives_count': len(routes),
+            'search_options': {
                 'avoid_tolls': search_params.get('avoid_tolls', False),
                 'avoid_highways': search_params.get('avoid_highways', False),
-                'traffic_analysis': best_route.get('traffic_analysis', {})
+                'avoid_ferries': search_params.get('avoid_ferries', False)
             }
+        }
+
+        origin_lat = search_params['origin'].get('lat', 0)
+        origin_lng = search_params['origin'].get('lng', 0)
+        dest_lat = search_params['destination'].get('lat', 0)
+        dest_lng = search_params['destination'].get('lng', 0)
+
+        try:
+            origin_lat = float(origin_lat) if origin_lat is not None else 0.0
+            origin_lng = float(origin_lng) if origin_lng is not None else 0.0
+            dest_lat = float(dest_lat) if dest_lat is not None else 0.0
+            dest_lng = float(dest_lng) if dest_lng is not None else 0.0
+        except (ValueError, TypeError):
+            current_app.logger.warning("Invalid coordinates, using defaults")
+            origin_lat = origin_lng = dest_lat = dest_lng = 0.0
+        
+        # Créer l'entrée avec la signature correcte
+        history_entry = RouteHistory(
+            session_id=session_id,
+            origin_address=search_params['origin']['address'][:250],
+            origin_lat=search_params['origin'].get('lat', 0),
+            origin_lng=search_params['origin'].get('lng', 0),
+            destination_address=search_params['destination']['address'][:250],
+            destination_lat=search_params['destination'].get('lat', 0),
+            destination_lng=search_params['destination'].get('lng', 0),
+            selected_route_data=selected_route_data,
+            travel_time_seconds=int(summary.get('duration', 0)),
+            distance_meters=int(summary.get('length', 0)),
+            optimization_score=float(best_route.get('optimization_score', 0)),
+            user_id=user_id,
+            time_saved_seconds=int(best_route.get('time_saved', 0))
         )
+
+        # Ajouter les routes alternatives si disponibles
+        if len(routes) > 1:
+            alternative_routes = []
+            for route in routes[1:]:  # Toutes sauf la première
+                alt_summary = route.get('summary', {})
+                if 'original_data' in route:
+                    alt_summary = route['original_data'].get('summary', {})
+                
+                alternative_routes.append({
+                    'duration': alt_summary.get('duration', 0),
+                    'length': alt_summary.get('length', 0),
+                    'optimization_score': route.get('optimization_score', 0)
+                })
+            
+            history_entry.alternative_routes = alternative_routes
+            history_entry.calculate_time_saved(alternative_routes)
         
         history_entry.save()
+        current_app.logger.info(f'✅ Route sauvegardée dans historique: ID {history_entry.id}')
         
     except Exception as e:
         current_app.logger.warning(f'Erreur sauvegarde historique: {str(e)}')
+        current_app.logger.error(f'Détails erreur - Origin: {search_params.get("origin")}, Dest: {search_params.get("destination")}')
 
 def track_user_usage(user_id, action):
     """Tracker l'utilisation des fonctionnalités."""
@@ -307,11 +418,17 @@ def track_user_usage(user_id, action):
         try:
             from backend.models.analytics import UserAnalytics
             analytics = UserAnalytics.get_or_create(user_id)
-            analytics.total_routes_searched += 1
+            if hasattr(analytics, 'total_routes_searched'):
+                analytics.total_routes_searched += 1
             analytics.last_activity = datetime.utcnow()
             analytics.save()
         except Exception as analytics_error:
             current_app.logger.warning(f'Erreur mise à jour analytics: {str(analytics_error)}')
+
+        # Traiter l'abonnement si disponible
+        if hasattr(user, 'subscription') and user.subscription:
+            if action == 'search' and hasattr(user.subscription, 'increment_daily_searches'):
+                user.subscription.increment_daily_searches()
             
     except Exception as e:
         current_app.logger.warning(f'Erreur tracking usage: {str(e)}')

@@ -557,7 +557,23 @@
 
     async function performSearch() {
         try {
+            // Vérifications côté client
+            if (!window.selectedOrigin || !window.selectedOrigin.address) {
+                showAlert('⚠️ Veuillez sélectionner un point de départ valide', 'error');
+                return false;
+            }
+            
+            if (!window.selectedDestination || !window.selectedDestination.address) {
+                showAlert('⚠️ Veuillez sélectionner un point d\'arrivée valide', 'error');
+                return false;
+            }
+
             showLoading('Calcul de l\'itinéraire optimal...');
+
+            // Debug des données avant envoi
+            console.log('=== DEBUG SEARCH DATA ===');
+            console.log('Selected Origin:', window.selectedOrigin);
+            console.log('Selected Destination:', window.selectedDestination);
             
             const formData = new FormData(document.getElementById('advanced-search-form'));
             const searchData = Object.fromEntries(formData.entries());
@@ -566,28 +582,45 @@
             searchData.origin = window.selectedOrigin;
             searchData.destination = window.selectedDestination;
             
-            // Add subscription type for server-side limitations
-            searchData.subscription_type = '{{ current_user.subscription_type if current_user.is_authenticated else "guest" }}';
+            // ✅ CORRECTION: Récupérer subscription_type côté client 
+            // Vérifier dans l'élément HTML ou via API
+            const userElement = document.querySelector('[data-user-type]');
+            searchData.subscription_type = userElement ? userElement.dataset.userType : 'guest';
             
-            const response = await apiRequest('/api/search-routes', {
+            console.log('Data to send:', JSON.stringify(searchData, null, 2));
+
+            // ✅ CORRECTION: Appel API simplifié
+            const response = await fetch('/api/search-routes', {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(searchData)
             });
+
+            // ✅ CORRECTION: Vérifier d'abord le statut de la réponse
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Response:', data);
             
             hideLoading();
-            
-            if (response.success) {
+
+            if (data.success) {
                 // Store search data and redirect to results
-                sessionStorage.setItem('searchResults', JSON.stringify(response));
+                sessionStorage.setItem('searchResults', JSON.stringify(data));
                 window.location.href = '/results';
             } else {
-                showAlert(response.error?.message || 'Erreur lors de la recherche', 'error');
+                console.error('API Error:', data.error);
+                showAlert(data.error?.message || 'Erreur lors de la recherche', 'error');
             }
             
         } catch (error) {
             hideLoading();
-            showAlert('Erreur lors de la recherche d\'itinéraire', 'error');
             console.error('Search error:', error);
+            showAlert('Erreur lors de la recherche d\'itinéraire', 'error');
         }
     }
 </script>

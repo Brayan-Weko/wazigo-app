@@ -79,6 +79,7 @@ L'application analyse plusieurs itinéraires alternatifs, évalue les conditions
 ### Prérequis
 - Python 3.8 ou supérieur
 - pip (gestionnaire de paquets Python)
+- Node 22 ou supérieur
 - Clé API Google Maps (gratuite)
 - Git
 
@@ -105,6 +106,10 @@ source venv/bin/activate
 
 ```bash
 pip install -r backend/requirements.txt
+```
+
+```bash
+npm install
 ```
 
 ### 4. Configuration des Variables d'Environnement
