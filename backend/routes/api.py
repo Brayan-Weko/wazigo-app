@@ -254,9 +254,9 @@ def save_route_to_history(user_id, search_params, routes):
         if not routes or len(routes) == 0:
             return
         
-        # Prendre la première route (la meilleure)
         best_route = routes[0]
         
+        # Adapter à la structure des routes optimisées
         if 'summary' in best_route:
             summary = best_route['summary']
         elif 'original_data' in best_route:
@@ -266,7 +266,6 @@ def save_route_to_history(user_id, search_params, routes):
         
         from backend.models.history import RouteHistory
         
-        # Créer l'entrée d'historique
         history_entry = RouteHistory(
             user_id=user_id,
             origin_address=search_params['origin']['address'],
@@ -277,10 +276,10 @@ def save_route_to_history(user_id, search_params, routes):
             destination_lng=search_params['destination'].get('lng'),
             travel_time_seconds=summary.get('duration', 0),
             distance_meters=summary.get('length', 0),
-            route_type=search_params.get('route_type', 'fastest'),
             optimization_score=best_route.get('optimization_score', 0),
             time_saved_seconds=best_route.get('time_saved', 0),
             route_data={
+                'route_type': search_params.get('route_type', 'fastest'),
                 'alternatives_count': len(routes),
                 'avoid_tolls': search_params.get('avoid_tolls', False),
                 'avoid_highways': search_params.get('avoid_highways', False),
@@ -296,20 +295,23 @@ def save_route_to_history(user_id, search_params, routes):
 def track_user_usage(user_id, action):
     """Tracker l'utilisation des fonctionnalités."""
     try:
-        # Incrémenter le compteur d'abonnement si applicable
-        from models import User
+        # Import direct pour éviter les conflits
+        from backend.models.user import User
         user = User.get_by_id(user_id)
         
         if user and hasattr(user, 'subscription') and user.subscription:
             if action == 'search':
                 user.subscription.increment_daily_searches()
         
-        # Mettre à jour les analytics utilisateur
-        if hasattr(user, 'analytics') and user.analytics:
-            analytics = user.analytics
-            analytics.total_searches += 1
-            analytics.last_search = datetime.utcnow()
+        # Mettre à jour les analytics utilisateur si elles existent
+        try:
+            from backend.models.analytics import UserAnalytics
+            analytics = UserAnalytics.get_or_create(user_id)
+            analytics.total_routes_searched += 1
+            analytics.last_activity = datetime.utcnow()
             analytics.save()
+        except Exception as analytics_error:
+            current_app.logger.warning(f'Erreur mise à jour analytics: {str(analytics_error)}')
             
     except Exception as e:
         current_app.logger.warning(f'Erreur tracking usage: {str(e)}')

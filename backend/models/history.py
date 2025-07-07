@@ -46,7 +46,7 @@ class RouteHistory(DatabaseMixin, db.Model):
     def __init__(self, session_id, origin_address, origin_lat, origin_lng,
                  destination_address, destination_lat, destination_lng,
                  selected_route_data, travel_time_seconds, distance_meters,
-                 optimization_score, user_id=None):
+                 optimization_score, user_id=None, time_saved_seconds=0):
         self.session_id = session_id
         self.origin_address = origin_address
         self.origin_lat = float(origin_lat)
@@ -59,6 +59,7 @@ class RouteHistory(DatabaseMixin, db.Model):
         self.distance_meters = distance_meters
         self.optimization_score = float(optimization_score)
         self.user_id = user_id
+        self.time_saved_seconds = time_saved_seconds
     
     def __repr__(self):
         return f'<RouteHistory {self.id} - {self.optimization_score}>'

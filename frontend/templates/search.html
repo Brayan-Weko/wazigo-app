@@ -514,9 +514,41 @@
             return false;
         }
         
-        // Validate origin and destination are set
-        if (!window.selectedOrigin || !window.selectedDestination) {
-            showAlert('Veuillez sélectionner un point de départ et d\'arrivée', 'error');
+        // Vérifier que les champs sont remplis selon la méthode sélectionnée
+        const originMethod = document.querySelector('#origin-section .location-method-btn.active')?.dataset.method;
+        const destMethod = document.querySelector('#destination-section .location-method-btn.active')?.dataset.method;
+        
+        let originValid = false;
+        let destValid = false;
+        
+        // Validation pour l'origine
+        if (originMethod === 'search') {
+            originValid = !!document.getElementById('origin-search').value.trim();
+        } else if (originMethod === 'favorites') {
+            originValid = !!document.getElementById('origin-favorites').value;
+        } else if (originMethod === 'map') {
+            originValid = !!window.selectedOrigin;
+        } else if (originMethod === 'coordinates') {
+            const lat = parseFloat(document.getElementById('origin-lat').value);
+            const lng = parseFloat(document.getElementById('origin-lng').value);
+            originValid = !isNaN(lat) && !isNaN(lng);
+        }
+        
+        // Validation pour la destination
+        if (destMethod === 'search') {
+            destValid = !!document.getElementById('destination-search').value.trim();
+        } else if (destMethod === 'favorites') {
+            destValid = !!document.getElementById('destination-favorites').value;
+        } else if (destMethod === 'map') {
+            destValid = !!window.selectedDestination;
+        } else if (destMethod === 'coordinates') {
+            const lat = parseFloat(document.getElementById('destination-lat').value);
+            const lng = parseFloat(document.getElementById('destination-lng').value);
+            destValid = !isNaN(lat) && !isNaN(lng);
+        }
+        
+        if (!originValid || !destValid) {
+            showAlert('Veuillez spécifier un point de départ et une destination valides', 'error');
             return false;
         }
         

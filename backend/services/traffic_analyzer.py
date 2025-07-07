@@ -158,6 +158,258 @@ class TrafficAnalyzer:
         
         return predictions
     
+    def _predict_next_hour_traffic(self, current_level: str, current_hour: int) -> Dict:
+        """Prédire le trafic de l'heure suivante"""
+        try:
+            next_hour = (current_hour + 1) % 24
+            
+            # Patterns de trafic par heure
+            rush_hours = [7, 8, 9, 17, 18, 19]
+            moderate_hours = [10, 11, 12, 13, 14, 15, 16, 20]
+            
+            if next_hour in rush_hours:
+                predicted_level = 'heavy' if current_level in ['moderate', 'heavy'] else 'moderate'
+            elif next_hour in moderate_hours:
+                predicted_level = 'moderate' if current_level == 'heavy' else 'light'
+            else:
+                predicted_level = 'free'
+            
+            confidence = 0.7 if current_level == predicted_level else 0.5
+            
+            return {
+                'predicted_level': predicted_level,
+                'confidence': confidence,
+                'hour': next_hour,
+                'trend': 'improving' if predicted_level < current_level else 'worsening' if predicted_level > current_level else 'stable'
+            }
+        except Exception as e:
+            self.logger.error(f"Error predicting next hour traffic: {e}")
+            return {
+                'predicted_level': current_level,
+                'confidence': 0.3,
+                'hour': (current_hour + 1) % 24,
+                'trend': 'stable'
+            }
+
+    def _assess_rush_hour_impact(self, current_hour: int) -> Dict:
+        """Évaluer l'impact des heures de pointe"""
+        try:
+            morning_rush = [7, 8, 9]
+            evening_rush = [17, 18, 19]
+            
+            if current_hour in morning_rush:
+                return {
+                    'is_rush_hour': True,
+                    'type': 'morning',
+                    'severity': 'high' if current_hour == 8 else 'moderate',
+                    'expected_duration_minutes': 60 - ((current_hour - 7) * 20)
+                }
+            elif current_hour in evening_rush:
+                return {
+                    'is_rush_hour': True,
+                    'type': 'evening',
+                    'severity': 'high' if current_hour == 18 else 'moderate',
+                    'expected_duration_minutes': 60 - ((current_hour - 17) * 20)
+                }
+            else:
+                return {
+                    'is_rush_hour': False,
+                    'type': 'off_peak',
+                    'severity': 'low',
+                    'expected_duration_minutes': 0
+                }
+        except Exception as e:
+            self.logger.error(f"Error assessing rush hour: {e}")
+            return {'is_rush_hour': False, 'type': 'unknown', 'severity': 'low', 'expected_duration_minutes': 0}
+
+    def _compare_weekend_traffic(self, current_hour: int) -> Dict:
+        """Comparer avec le trafic de weekend"""
+        try:
+            import datetime
+            is_weekend = datetime.datetime.now().weekday() >= 5
+            
+            if is_weekend:
+                weekend_pattern = 'current'
+                comparison = 'Same as current (weekend)'
+            else:
+                # Simulation des patterns weekend
+                if 10 <= current_hour <= 14:
+                    weekend_pattern = 'moderate'
+                    comparison = 'Lighter on weekends'
+                elif current_hour in [7, 8, 17, 18]:
+                    weekend_pattern = 'light'
+                    comparison = 'Much lighter on weekends'
+                else:
+                    weekend_pattern = 'free'
+                    comparison = 'Similar on weekends'
+            
+            return {
+                'is_weekend': is_weekend,
+                'weekend_pattern': weekend_pattern,
+                'comparison': comparison
+            }
+        except Exception as e:
+            self.logger.error(f"Error comparing weekend traffic: {e}")
+            return {'is_weekend': False, 'weekend_pattern': 'unknown', 'comparison': 'Unable to compare'}
+
+    def _estimate_improvement_time(self, global_analysis: Dict) -> Dict:
+        """Estimer le temps d'amélioration du trafic"""
+        try:
+            traffic_level = global_analysis.get('traffic_level', 'moderate')
+            current_hour = datetime.now().hour
+            
+            if traffic_level in ['free', 'light']:
+                return {
+                    'improvement_expected': False,
+                    'estimated_minutes': 0,
+                    'reason': 'Traffic already flowing well'
+                }
+            
+            # Estimation basée sur l'heure et le niveau
+            if current_hour in [7, 8, 9]:  # Rush du matin
+                improvement_time = (10 - current_hour) * 60
+            elif current_hour in [17, 18, 19]:  # Rush du soir
+                improvement_time = (21 - current_hour) * 60
+            else:
+                improvement_time = 30  # Amélioration générale
+            
+            return {
+                'improvement_expected': True,
+                'estimated_minutes': max(15, improvement_time),
+                'reason': f'Traffic typically improves after current period'
+            }
+        except Exception as e:
+            self.logger.error(f"Error estimating improvement time: {e}")
+            return {'improvement_expected': False, 'estimated_minutes': 0, 'reason': 'Unable to estimate'}
+
+    def _suggest_alternative_times(self, global_analysis: Dict, current_hour: int) -> List[Dict]:
+        """Suggérer des heures alternatives de départ"""
+        try:
+            suggestions = []
+            traffic_level = global_analysis.get('traffic_level', 'moderate')
+            
+            if traffic_level in ['heavy', 'severe']:
+                # Suggérer des heures moins chargées
+                good_hours = [6, 10, 11, 14, 15, 21, 22]
+                for hour in good_hours:
+                    if hour != current_hour:
+                        time_diff = hour - current_hour
+                        if time_diff < 0:
+                            time_diff += 24
+                        
+                        if time_diff <= 4:  # Suggestions dans les 4 prochaines heures
+                            suggestions.append({
+                                'departure_hour': hour,
+                                'time_difference_hours': time_diff,
+                                'expected_traffic': 'light' if hour in [6, 10, 14, 21] else 'moderate',
+                                'recommendation': f"Départ à {hour}h00 pour éviter les embouteillages"
+                            })
+            
+            return suggestions[:3]  # Max 3 suggestions
+        except Exception as e:
+            self.logger.error(f"Error suggesting alternative times: {e}")
+            return []
+
+    def _generate_critical_point_description(self, section: Dict) -> str:
+        """Générer une description pour un point critique"""
+        try:
+            road_type = section.get('road_type', 'unknown')
+            congestion_index = section.get('congestion_index', 0)
+            incident_impact = section.get('incident_impact', {})
+            
+            if incident_impact.get('count', 0) > 0:
+                return f"Incident majeur détecté sur {road_type}"
+            elif congestion_index >= 8:
+                return f"Congestion sévère sur {road_type}"
+            elif congestion_index >= 6:
+                return f"Ralentissements importants sur {road_type}"
+            else:
+                return f"Point de congestion sur {road_type}"
+        except Exception as e:
+            return "Point critique détecté"
+
+    def _estimate_critical_point_delay(self, section: Dict) -> int:
+        """Estimer le délai causé par un point critique"""
+        try:
+            congestion_index = section.get('congestion_index', 0)
+            incident_count = section.get('incident_impact', {}).get('count', 0)
+            
+            base_delay = congestion_index * 30  # 30 secondes par point d'index
+            incident_delay = incident_count * 120  # 2 minutes par incident
+            
+            return int(base_delay + incident_delay)
+        except Exception as e:
+            return 60  # Délai par défaut
+
+    def _suggest_alternative_for_critical_point(self, section: Dict) -> str:
+        """Suggérer une alternative pour un point critique"""
+        try:
+            road_type = section.get('road_type', 'unknown')
+            
+            suggestions = {
+                'highway': "Utiliser les routes secondaires parallèles",
+                'major_road': "Emprunter les boulevards alternatifs",
+                'city_street': "Éviter le centre-ville si possible",
+                'secondary_road': "Chercher un itinéraire de contournement"
+            }
+            
+            return suggestions.get(road_type, "Rechercher un itinéraire alternatif")
+        except Exception as e:
+            return "Considérer un itinéraire alternatif"
+
+    def _generate_traffic_summary(self, global_analysis: Dict, critical_points: List[Dict]) -> Dict:
+        """Générer un résumé du trafic"""
+        try:
+            traffic_level = global_analysis.get('traffic_level', 'unknown')
+            fluidity_score = global_analysis.get('fluidity_score', 50)
+            critical_count = len(critical_points)
+            
+            if traffic_level == 'free':
+                message = "🟢 Circulation fluide"
+                color = "#00FF00"
+            elif traffic_level == 'light':
+                message = "🟡 Circulation légèrement ralentie"
+                color = "#FFFF00"
+            elif traffic_level == 'moderate':
+                message = "🟠 Ralentissements modérés"
+                color = "#FFA500"
+            elif traffic_level == 'heavy':
+                message = "🔴 Circulation difficile"
+                color = "#FF0000"
+            else:
+                message = "⚫ Conditions inconnues"
+                color = "#808080"
+            
+            if critical_count > 0:
+                message += f" - {critical_count} point(s) critique(s)"
+            
+            return {
+                'level': traffic_level,
+                'message': message,
+                'color': color,
+                'fluidity_score': fluidity_score,
+                'critical_points_count': critical_count,
+                'recommendation': self._get_summary_recommendation(traffic_level, critical_count)
+            }
+        except Exception as e:
+            return {
+                'level': 'unknown',
+                'message': 'Conditions de trafic indisponibles',
+                'color': '#808080',
+                'fluidity_score': 50,
+                'critical_points_count': 0,
+                'recommendation': 'Vérifier les conditions avant de partir'
+            }
+
+    def _get_summary_recommendation(self, traffic_level: str, critical_count: int) -> str:
+        """Obtenir une recommandation basée sur le résumé"""
+        if traffic_level in ['heavy', 'severe'] or critical_count > 2:
+            return "Reporter le déplacement si possible"
+        elif traffic_level == 'moderate' or critical_count > 0:
+            return "Prévoir du temps supplémentaire"
+        else:
+            return "Conditions favorables pour voyager"
+    
     def get_traffic_status(self, lat: float, lng: float, radius: int = 5000) -> Dict:
         """Récupérer le statut du trafic pour une zone géographique"""
         

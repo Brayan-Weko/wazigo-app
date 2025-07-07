@@ -5,6 +5,7 @@ from flask import current_app
 import time
 from typing import Dict, List, Optional, Tuple
 import logging
+from backend.utils.date_helpers import validate_here_datetime, get_here_current_time
 
 class HereApiService:
     """Service pour interagir avec l'API HERE Maps"""
@@ -117,30 +118,18 @@ class HereApiService:
             self.logger.error("Impossible de géocoder les adresses")
             return None
         
-        # Paramètres de base pour l'API HERE v8
+        # ✅ CORRECTION: Paramètres conformes à HERE Maps v8
         params = {
             'transportMode': 'car',
             'origin': f"{origin_coords['lat']},{origin_coords['lng']}",
             'destination': f"{destination_coords['lat']},{destination_coords['lng']}",
-            'return': 'summary,polyline,instructions,incidents',
+            'return': 'summary,polyline,actions,instructions',  # ✅ Ajouter 'actions' pour les instructions
             'alternatives': min(search_params.get('alternatives', 3), 7),  # HERE limite à 7
             'units': 'metric'
         }
         
-        # ✅ CORRECTION: Heure de départ avec import datetime correct
-        if search_params.get('departure_time'):
-            try:
-                departure_time = search_params['departure_time']
-                if isinstance(departure_time, str) and 'T' not in departure_time:
-                    # Essayer de parser et convertir au format ISO
-                    dt = datetime.fromisoformat(departure_time)
-                    departure_time = dt.isoformat()
-                params['departureTime'] = departure_time
-            except (ValueError, TypeError) as e:
-                self.logger.warning(f"Erreur format departure_time: {e}, utilisation heure actuelle")
-                params['departureTime'] = datetime.now().isoformat()
-        else:
-            params['departureTime'] = datetime.now().isoformat()
+        # Format datetime pour HERE Maps (sans microsecondes)
+        params['departureTime'] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         
         # Type de route (HERE v8 utilise routingMode)
         route_type = search_params.get('route_type', 'fastest')
@@ -183,19 +172,42 @@ class HereApiService:
                 # Ajouter les informations de trafic si disponibles
                 if 'summary' in route:
                     summary = route['summary']
-                    if 'duration' in summary and 'typicalDuration' in summary:
-                        route['traffic_analysis'] = {
-                            'ratio': summary['duration'] / summary['typicalDuration'] if summary['typicalDuration'] > 0 else 1.0,
-                            'delay_seconds': max(0, summary['duration'] - summary.get('typicalDuration', summary['duration'])),
-                            'status': self._get_traffic_status(summary)
-                        }
                     
-                    self.logger.info(f"Route {i}: {summary.get('duration', 0)}s, {summary.get('length', 0)}m")
+                    # Calculer les informations de trafic
+                    duration = summary.get('duration', 0)
+                    typical_duration = summary.get('typicalDuration', duration)
+                    
+                    route['traffic_analysis'] = {
+                        'ratio': duration / typical_duration if typical_duration > 0 else 1.0,
+                        'delay_seconds': max(0, duration - typical_duration),
+                        'status': self._get_traffic_status(summary),
+                        'level': self._get_traffic_level(duration, typical_duration)
+                    }
+                    
+                    self.logger.info(f"Route {i}: Duration={duration}s, Length={summary.get('length', 0)}m, Traffic={route['traffic_analysis']['status']}")
             
             return data
         
         self.logger.error(f"HERE API failed or returned no routes")
         return None
+    
+    def _get_traffic_level(self, duration, typical_duration):
+        """Calculer le niveau de trafic numérique"""
+        if typical_duration == 0:
+            return 5
+        
+        ratio = duration / typical_duration
+        
+        if ratio <= 1.1:
+            return 9  # Excellent
+        elif ratio <= 1.3:
+            return 7  # Bon
+        elif ratio <= 1.6:
+            return 5  # Moyen
+        elif ratio <= 2.0:
+            return 3  # Mauvais
+        else:
+            return 1  # Très mauvais
 
     def _get_traffic_status(self, summary: Dict) -> str:
         """Déterminer le statut du trafic basé sur la durée"""

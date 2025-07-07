@@ -114,8 +114,10 @@ class LocationSearchManager {
                     position: {
                         lat: parseFloat(item.lat),
                         lng: parseFloat(item.lon)
-                    }
+                    },
+                    country: item.address?.country_code || this.selectedCountry.code
                 }));
+
                 this.displaySuggestions(suggestions, type);
             } else {
                 this.showSuggestionError(type, 'Aucun résultat trouvé');
@@ -209,6 +211,15 @@ class LocationSearchManager {
 
     selectLocation(location, type) {
         const locationData = this.normalizeLocationData(location);
+
+        // Vérification moins stricte du pays
+        if (this.selectedCountry && locationData.country) {
+            const countryMatch = locationData.country.toLowerCase() === this.selectedCountry.code.toLowerCase();
+            if (!countryMatch) {
+                showAlert(`Le lieu sélectionné n'est pas dans ${this.selectedCountry.name}. Veuillez vérifier.`, 'warning');
+                // On continue quand même pour permettre les cas limites
+            }
+        }
 
         if (type === 'origin') {
             this.selectedOrigin = locationData;
@@ -974,7 +985,7 @@ window.LocationSearch = new LocationSearchManager();
 // Fonctions globales pour les boutons
 window.setLocationMethod = (type, method) => {
     // Mettre à jour les boutons
-    const buttons = document.querySelectorAll(`#${locationType}-section .location-method-btn`);
+    const buttons = document.querySelectorAll(`#${type}-section .location-method-btn`);
     buttons.forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.method === method) {
@@ -983,10 +994,10 @@ window.setLocationMethod = (type, method) => {
     });
 
     // Afficher/masquer les conteneurs appropriés
-    const containers = document.querySelectorAll(`#${locationType}-section .location-input-container`);
+    const containers = document.querySelectorAll(`#${type}-section .location-input-container`);
     containers.forEach(container => container.classList.add('hidden'));
     
-    const targetContainer = document.getElementById(`${locationType}-${method}-method`);
+    const targetContainer = document.getElementById(`${type}-${method}-method`);
     if (targetContainer) {
         targetContainer.classList.remove('hidden');
     }
@@ -995,13 +1006,6 @@ window.setLocationMethod = (type, method) => {
     document.getElementById(`${type}-${method}-method`).classList.remove('hidden');
 
     document.querySelector(`#${type}-section .location-method-btn[data-method="${method}"]`).classList.add('active');
-
-    // Réinitialiser la sélection
-    if (locationType === 'origin') {
-        window.selectedOrigin = null;
-    } else {
-        window.selectedDestination = null;
-    }
 };
 
 window.openMapSelector = (type) => window.LocationSearch.openMapSelector(type);
@@ -1013,6 +1017,7 @@ window.resolveCountryConflict = (action, locationData, type) => window.LocationS
 // Initialisation automatique
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('origin-section')) {
+        window.LocationSearch = new LocationSearchManager();
         window.LocationSearch.initialize();
     }
 });

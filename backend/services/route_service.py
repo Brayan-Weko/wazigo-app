@@ -132,13 +132,18 @@ class RouteService:
         params = {
             'origin': self._format_location_for_here(origin),
             'destination': self._format_location_for_here(destination),
-            'departure_time': kwargs.get('departure_time'),
             'route_type': kwargs.get('route_type', 'fastest'),
             'avoid_tolls': kwargs.get('avoid_tolls', False),
             'avoid_highways': kwargs.get('avoid_highways', False),
             'avoid_ferries': kwargs.get('avoid_ferries', False),
             'alternatives': kwargs.get('alternatives', 3)
         }
+        
+        # ✅ CORRECTION: Ne pas passer departure_time vide
+        departure_time = kwargs.get('departure_time')
+        if departure_time and str(departure_time).strip():
+            params['departure_time'] = str(departure_time).strip()
+        # Sinon, ne pas inclure le paramètre (HERE utilisera l'heure actuelle)
         
         # Appliquer les limites d'abonnement
         subscription_type = kwargs.get('subscription_type', 'free')
