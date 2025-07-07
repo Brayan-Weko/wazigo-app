@@ -61,7 +61,7 @@ class Config:
     CACHE_DEFAULT_TIMEOUT = 300  # 5 minutes
     
     # Configuration de l'application
-    APP_NAME = os.environ.get('APP_NAME', 'Smart Route')
+    APP_NAME = os.environ.get('APP_NAME', 'WaziGo')
     APP_URL = os.environ.get('APP_URL', 'http://localhost:5000')
     
     # Paramètres de l'algorithme d'optimisation

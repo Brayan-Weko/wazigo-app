@@ -187,7 +187,11 @@
         // Get search parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
 
-        // Vérifier si nous avons des résultats en session
+        // Mettre à jour l'affichage des adresses
+        document.getElementById('origin-display').textContent = urlParams.get('origin') || 'Non spécifié';
+        document.getElementById('destination-display').textContent = urlParams.get('destination') || 'Non spécifié';
+
+        // Récupérer les résultats depuis sessionStorage
         const storedResults = sessionStorage.getItem('searchResults');
 
         if (storedResults) {
@@ -226,7 +230,7 @@
         document.getElementById('destination-display').textContent = searchParams.destination;
 
         // Initialize map
-        // initializeMap();
+        initializeMap();
 
         // Search for routes
         searchRoutes(searchParams);
@@ -271,99 +275,117 @@
             container.appendChild(routeElement);
         });
     }
+    
+    /*function displayRoutes(routes) {
+        const container = document.getElementById('routes-container');
+        const loadingElement = document.getElementById('routes-loading');
+        
+        loadingElement.classList.add('hidden');
+        container.classList.remove('hidden');
+        container.innerHTML = '';
 
-    function createRouteCard(route, index) {
-        const card = document.createElement('div');
-        card.className = `route-card ${index === selectedRouteIndex ? 'selected' : ''}`;
-        card.onclick = () => selectRoute(index);
+        if (!routes || routes.length === 0) {
+            showNoResults();
+            return;
+        }
 
-        const summary = route.summary;
-        const score = route.optimization_score;
-        const recommendation = route.recommendation;
-
-        card.innerHTML = `
-            <div class="flex items-start justify-between mb-4">
-                <div class="flex-1">
-                    <div class="flex items-center mb-2">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getScoreClass(score)}">
-                            ${formatScore(score)}
-                        </span>
-                        ${recommendation ? `
-                            <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" style="background-color: ${recommendation.color}20; color: ${recommendation.color};">
-                                ${recommendation.title}
+        routes.forEach((route, index) => {
+            const summary = route.summary || {};
+            const duration = summary.duration || 0;
+            const length = summary.length || 0;
+            const delay = summary.trafficDelay || 0;
+            
+            const routeElement = document.createElement('div');
+            routeElement.className = `route-card bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg mb-4 cursor-pointer transition-all ${index === selectedRouteIndex ? 'border-2 border-primary-500' : 'hover:shadow-md'}`;
+            routeElement.innerHTML = `
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <div class="flex items-center mb-2">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getScoreClass(route.optimization_score)}">
+                                ${formatScore(route.optimization_score)}
                             </span>
-                        ` : ''}
+                        </div>
+                        <div class="text-xl font-bold text-gray-900 dark:text-white">
+                            ${formatDuration(duration)}
+                            ${delay > 0 ? `<span class="text-sm text-orange-500 ml-2">(+${formatDuration(delay)})</span>` : ''}
+                        </div>
+                        <div class="text-gray-600 dark:text-gray-300">
+                            ${formatDistance(length)}
+                        </div>
                     </div>
-                    <div class="text-lg font-semibold text-gray-900 dark:text-white">
-                        ${formatDuration(summary.duration)}
-                    </div>
-                    <div class="text-sm text-gray-600 dark:text-gray-300">
-                        ${formatDistance(summary.length)}
-                        ${summary.delay_info && summary.delay_info.delay_seconds > 0 ? 
-                            `<span class="text-orange-600 dark:text-orange-400 ml-2">
-                                +${formatDuration(summary.delay_info.delay_seconds)}
-                            </span>` : ''
-                        }
+                    <div class="flex flex-col items-end">
+                        <div class="text-lg font-semibold text-primary-600 dark:text-primary-400 mb-2">
+                            ${route.cost_estimate?.total_cost ? route.cost_estimate.total_cost + ' FCFA' : 'N/A'}
+                        </div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">
+                            ${route.environmental_impact?.estimated_co2_emission ? route.environmental_impact.estimated_co2_emission + ' kg CO₂' : ''}
+                        </div>
                     </div>
                 </div>
-                <div class="flex flex-col items-end">
-                    <button onclick="event.stopPropagation(); startNavigation(${index})" 
-                            class="btn-primary text-sm mb-2">
-                        <i class="fas fa-play mr-1"></i>
-                        Partir
-                    </button>
-                    <button onclick="event.stopPropagation(); showRouteDetails(${index})" 
-                            class="text-gray-400 hover:text-primary-600 transition-colors">
-                        <i class="fas fa-info-circle"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Traffic info -->
-            ${route.traffic_analysis ? `
+                
+                ${route.traffic_analysis ? `
                 <div class="flex items-center mb-3">
                     <div class="w-3 h-3 rounded-full ${getTrafficClass(route.traffic_analysis.level)} mr-2"></div>
                     <span class="text-sm text-gray-600 dark:text-gray-300">
-                        ${route.traffic_analysis.description}
+                        ${route.traffic_analysis.description || 'Trafic normal'}
                     </span>
                 </div>
-            ` : ''}
-
-            <!-- Incidents -->
-            ${route.incidents && route.incidents.length > 0 ? `
-                <div class="mb-3">
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Incidents signalés :</div>
-                    <div class="space-y-1">
-                        ${route.incidents.slice(0, 2).map(incident => `
-                            <div class="flex items-center text-xs text-gray-600 dark:text-gray-300">
-                                <span class="mr-1">${incident.icon}</span>
-                                <span>${incident.title}</span>
-                            </div>
-                        `).join('')}
-                        ${route.incidents.length > 2 ? `
-                            <div class="text-xs text-gray-500">+${route.incidents.length - 2} autres</div>
-                        ` : ''}
-                    </div>
+                ` : ''}
+                
+                <div class="flex justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <button onclick="event.stopPropagation(); showRouteDetails(${index})" 
+                            class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                        <i class="fas fa-info-circle mr-1"></i> Détails
+                    </button>
+                    <button onclick="event.stopPropagation(); startNavigation(${index})" 
+                            class="btn-primary text-sm px-4 py-1">
+                        <i class="fas fa-play mr-1"></i> Partir
+                    </button>
                 </div>
-            ` : ''}
+            `;
+            
+            routeElement.addEventListener('click', () => selectRoute(index));
+            container.appendChild(routeElement);
+        });
+    }*/
 
-            <!-- Cost and environmental -->
-            <div class="grid grid-cols-2 gap-4 text-xs text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-200 dark:border-gray-700">
-                ${route.cost_estimate ? `
-                    <div>
-                        <i class="fas fa-euro-sign mr-1"></i>
-                        ~${route.cost_estimate.total_cost}€
-                    </div>
-                ` : ''}
-                ${route.environmental_impact ? `
-                    <div>
-                        <i class="fas fa-leaf mr-1"></i>
-                        ${route.environmental_impact.estimated_co2_emission.toFixed(1)}kg CO₂
-                    </div>
-                ` : ''}
+    function createRouteCard(route, index) {
+        const summary = route.summary || {};
+        const traffic = route.traffic_analysis || {};
+        
+        const card = document.createElement('div');
+        card.className = `bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg mb-4 cursor-pointer transition-all hover:shadow-xl ${index === selectedRouteIndex ? 'border-2 border-blue-500' : ''}`;
+        card.onclick = () => selectRoute(index);
+        
+        card.innerHTML = `
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Itinéraire ${index + 1}</h3>
+                    <div class="text-sm text-gray-600 dark:text-gray-300">${traffic.description || 'Conditions inconnues'}</div>
+                </div>
+                <div class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium">
+                    ${summary.formatted_duration || 'N/A'}
+                </div>
+            </div>
+            
+            <div class="flex items-center mb-3">
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${traffic.ratio ? Math.min(100, traffic.ratio * 100) : 100}%"></div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <div class="text-gray-500 dark:text-gray-400">Distance</div>
+                    <div class="font-medium">${summary.formatted_length || 'N/A'}</div>
+                </div>
+                <div>
+                    <div class="text-gray-500 dark:text-gray-400">Trafic</div>
+                    <div class="font-medium">${traffic.level ? traffic.level.toUpperCase() : 'N/A'}</div>
+                </div>
             </div>
         `;
-
+        
         return card;
     }
 
@@ -578,11 +600,91 @@
 
     // Map functions (to be implemented in maps.js)
     function initializeMap() {
-        // Implementation in maps.js
+        if (map) return;
+    
+        const mapContainer = document.getElementById('map-container');
+        mapContainer.innerHTML = ''; // Clear loading message
+        
+        // Centrer sur le premier point de l'itinéraire ou sur le Cameroun par défaut
+        const center = currentRoutes[0]?.summary?.origin || { lat: 5.5406812, lng: 12.3186341 };
+        
+        map = L.map('map-container').setView([center.lat, center.lng], 8);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
     }
 
     function displayRoutesOnMap(routes) {
-        // Implementation in maps.js
+        if (!map) initializeMap();
+        
+        // Clear previous routes
+        routeLayers.forEach(layer => map.removeLayer(layer));
+        routeLayers = [];
+        
+        if (!routes || routes.length === 0) return;
+        
+        // Add each route to the map
+        routes.forEach((route, index) => {
+            const sections = route.sections || [];
+            const color = index === 0 ? '#3388ff' : ['#ff0000', '#00ff00', '#0000ff'][index % 3];
+            
+            sections.forEach(section => {
+                const polyline = L.polyline(
+                    decodePolyline(section.polyline), 
+                    { color, weight: index === 0 ? 5 : 3 }
+                ).addTo(map);
+                
+                routeLayers.push(polyline);
+            });
+        });
+        
+        // Fit map to show all routes
+        const bounds = L.latLngBounds(
+            routes.flatMap(route => 
+                (route.sections || []).flatMap(section => 
+                    decodePolyline(section.polyline)
+                )
+            )
+        );
+        
+        if (!bounds.isValid()) {
+            map.setView([routes[0].summary.origin.lat, routes[0].summary.origin.lng], 10);
+        } else {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+
+    function decodePolyline(encoded) {
+        // Simple polyline decoder (vous pouvez utiliser une librairie comme polyline.js pour une implémentation complète)
+        if (!encoded) return [];
+        const points = [];
+        let index = 0, lat = 0, lng = 0;
+        
+        while (index < encoded.length) {
+            let b, shift = 0, result = 0;
+            do {
+                b = encoded.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+            lat += dlat;
+
+            shift = 0;
+            result = 0;
+            do {
+                b = encoded.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+            lng += dlng;
+
+            points.push([lat * 1e-5, lng * 1e-5]);
+        }
+        
+        return points;
     }
 
     function highlightRouteOnMap(route, index) {
@@ -599,6 +701,40 @@
 
     function toggleFullscreen() {
         // Implementation in maps.js
+    }
+
+
+    // Helper functions
+    function formatDuration(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return `${hours > 0 ? hours + 'h ' : ''}${minutes}min`;
+    }
+
+    function formatDistance(meters) {
+        if (meters >= 1000) {
+            return (meters / 1000).toFixed(1) + ' km';
+        }
+        return meters + ' m';
+    }
+
+    function formatScore(score) {
+        return Math.round(score * 100) + '%';
+    }
+
+    function getScoreClass(score) {
+        if (score >= 0.8) return 'bg-green-100 text-green-800';
+        if (score >= 0.5) return 'bg-yellow-100 text-yellow-800';
+        return 'bg-red-100 text-red-800';
+    }
+
+    function getTrafficClass(level) {
+        const levels = {
+            'low': 'bg-green-500',
+            'medium': 'bg-yellow-500',
+            'high': 'bg-red-500'
+        };
+        return levels[level] || 'bg-gray-500';
     }
 </script>
 {% endblock %}

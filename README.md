@@ -77,6 +77,7 @@ L'application analyse plusieurs itinéraires alternatifs, évalue les conditions
 ## 📦 Installation
 
 ### Prérequis
+- WampServer 5+
 - Python 3.8 ou supérieur
 - pip (gestionnaire de paquets Python)
 - Node 22 ou supérieur
@@ -102,7 +103,14 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 3. Installer les Dépendances
+### 3. Créer la base de données
+
+Démarrer WampServer
+
+Créer la base de données `smart_route_db`
+
+
+### 4. Installer les Dépendances
 
 ```bash
 pip install -r backend/requirements.txt
@@ -112,7 +120,7 @@ pip install -r backend/requirements.txt
 npm install
 ```
 
-### 4. Configuration des Variables d'Environnement
+### 5. Configuration des Variables d'Environnement
 
 Créez un fichier `.env` à la racine du projet :
 

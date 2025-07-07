@@ -606,13 +606,21 @@
             hideLoading();
 
             if (data.success) {
-                // Stocker les résultats ET passer les paramètres dans l'URL
-                sessionStorage.setItem('searchResults', JSON.stringify(data));
-                const params = new URLSearchParams({
-                    origin: window.selectedOrigin.address,
-                    destination: window.selectedDestination.address,
-                    route_type: searchData.route_type || 'fastest'
-                });
+                // Stocker les résultats de recherche dans un format attendu par results.html
+                const searchResults = {
+                    routes: data.routes,
+                    search_metadata: data.search_metadata,
+                    search_params: searchData
+                };
+
+                // Stocker dans sessionStorage
+                sessionStorage.setItem('searchResults', JSON.stringify(searchResults));
+
+                // Rediriger avec les paramètres de recherche
+                const params = new URLSearchParams();
+                params.append('origin', searchData.origin.address);
+                params.append('destination', searchData.destination.address);
+                params.append('route_type', searchData.route_type || 'fastest');
                 window.location.href = `/results?${params.toString()}`;
             } else {
                 showAlert(data.error?.message || 'Erreur lors de la recherche', 'error');
