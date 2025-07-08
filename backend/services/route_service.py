@@ -59,56 +59,63 @@ class RouteService:
             
             current_app.logger.info(f"Optimized to {len(optimized_routes)} routes")
             
-            # Analyser le trafic pour chaque route
-            for i, route in enumerate(optimized_routes):
+            # Préparer la réponse finale
+            response_routes = []
+            for route in optimized_routes:
+                # Utiliser les données originales si disponibles, sinon les données optimisées
+                route_data = route.get('original_data', route)
+                
+                # Extraire la première section (supposant qu'il n'y en a qu'une)
+                section = route_data.get('sections', [{}])[0]
+                summary = section.get('summary', {})
+                
+                # Analyser le trafic
                 try:
-                    traffic_analysis = self.traffic_analyzer.analyze_route_traffic(route.get('original_data', route))
-                    route['traffic_analysis'] = traffic_analysis.get('global_analysis', {})
-                    route['critical_points'] = traffic_analysis.get('critical_points', [])
+                    traffic_analysis = self.traffic_analyzer.analyze_route_traffic(route_data)
                 except Exception as e:
-                    current_app.logger.warning(f"Traffic analysis failed for route {i}: {str(e)}")
-                    route['traffic_analysis'] = {}
-                    route['critical_points'] = []
+                    current_app.logger.warning(f"Traffic analysis failed: {str(e)}")
+                    traffic_analysis = {'global_analysis': {}, 'critical_points': []}
+                
+                # Construire l'objet route pour la réponse
+                response_route = {
+                    'id': route.get('id'),
+                    'summary': {
+                        'duration': summary.get('duration', 0),
+                        'length': summary.get('length', 0),
+                        'typicalDuration': summary.get('baseDuration', summary.get('duration', 0)),
+                        'origin': {
+                            'lat': origin['lat'],
+                            'lng': origin['lng'],
+                            'address': origin.get('address', f"{origin['lat']},{origin['lng']}")
+                        },
+                        'destination': {
+                            'lat': destination['lat'],
+                            'lng': destination['lng'],
+                            'address': destination.get('address', f"{destination['lat']},{destination['lng']}")
+                        },
+                        'departure_time': section.get('departure', {}).get('time', ''),
+                        'arrival_time': section.get('arrival', {}).get('time', ''),
+                        'delay_info': {
+                            'delay_seconds': max(0, summary.get('duration', 0) - 
+                                            summary.get('baseDuration', summary.get('duration', 0))),
+                            'status': self.here_service._get_traffic_status(summary)
+                        }
+                    },
+                    'sections': route_data.get('sections', []),
+                    'polyline': section.get('polyline', ''),
+                    'traffic_analysis': traffic_analysis.get('global_analysis', {}),
+                    'critical_points': traffic_analysis.get('critical_points', []),
+                    'optimization_score': self.route_optimizer._calculate_optimization_score(route, kwargs),
+                    'cost_estimate': self.route_optimizer._calculate_cost_estimate(summary),
+                    'environmental_impact': self.route_optimizer._calculate_environmental_impact(summary),
+                    'origin_coords': origin,
+                    'destination_coords': destination
+                }
+                response_routes.append(response_route)
             
             response = {
                 'success': True,
-                'routes': [
-                    {
-                        'id': route.get('id'),
-                        'summary': {
-                            'duration': route.get('summary', {}).get('duration', 0),
-                            'length': route.get('summary', {}).get('length', 0),
-                            'typicalDuration': route.get('summary', {}).get('baseDuration', route.get('summary', {}).get('duration', 0)),
-                            'origin': {
-                                'lat': origin['lat'],
-                                'lng': origin['lng'],
-                                'address': origin.get('address', f"{origin['lat']},{origin['lng']}")
-                            },
-                            'destination': {
-                                'lat': destination['lat'],
-                                'lng': destination['lng'],
-                                'address': destination.get('address', f"{destination['lat']},{destination['lng']}")
-                            },
-                            'departure_time': route.get('sections', [{}])[0].get('departure', {}).get('time', ''),
-                            'arrival_time': route.get('sections', [{}])[-1].get('arrival', {}).get('time', ''),
-                            'delay_info': {
-                                'delay_seconds': max(0, route.get('summary', {}).get('duration', 0) - 
-                                                route.get('summary', {}).get('baseDuration', 
-                                                route.get('summary', {}).get('duration', 0))),
-                                'status': self.here_service._get_traffic_status(route.get('summary', {}))
-                            }
-                        },
-                        'sections': route.get('sections', []),  # Conserver les sections pour le tracé
-                        'polyline': route.get('sections', [{}])[0].get('polyline', ''),  # Pour la carte
-                        'traffic_analysis': route.get('traffic_analysis', {}),
-                        'optimization_score': self.route_optimizer._calculate_optimization_score(route, kwargs),
-                        'cost_estimate': self.route_optimizer._calculate_cost_estimate(route.get('summary', {})),
-                        'environmental_impact': self.route_optimizer._calculate_environmental_impact(route.get('summary', {})),
-                        'origin_coords': origin,
-                        'destination_coords': destination
-                    }
-                    for route in optimized_routes
-                ],
+                'routes': response_routes,
                 'query_time': time.time() - start_time
             }
             
