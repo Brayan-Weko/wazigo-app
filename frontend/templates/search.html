@@ -610,7 +610,8 @@
                 const searchResults = {
                     routes: data.routes,
                     search_metadata: data.search_metadata,
-                    search_params: searchData
+                    search_params: searchData,
+                    timestamp: new Date().toISOString()
                 };
 
                 // Stocker dans sessionStorage
@@ -621,6 +622,7 @@
                 params.append('origin', searchData.origin.address);
                 params.append('destination', searchData.destination.address);
                 params.append('route_type', searchData.route_type || 'fastest');
+                
                 window.location.href = `/results?${params.toString()}`;
             } else {
                 showAlert(data.error?.message || 'Erreur lors de la recherche', 'error');
@@ -642,6 +644,8 @@
             hideLoading();
             console.error('Search error:', error);
             showAlert('Erreur lors de la recherche d\'itinéraire', 'error');
+        } finally {
+            hideLoading();
         }
     }
 </script>

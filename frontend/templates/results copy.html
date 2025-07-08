@@ -182,72 +182,58 @@
     let currentRoutes = [];
     let selectedRouteIndex = 0;
     let map = null;
-    let searchResultsData = null;
 
     function initializeResultsPage() {
-        try {
-            const storedResults = sessionStorage.getItem('searchResults');
-            console.log('Données sessionStorage:', storedResults);
-            
-            if (!storedResults) {
-                console.error('Aucune donnée de recherche dans sessionStorage');
-                showError('Aucune donnée de recherche trouvée');
-                redirectToSearch();
-                return;
+        // Get search parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+
+        // Mettre à jour l'affichage des adresses
+        document.getElementById('origin-display').textContent = urlParams.get('origin') || 'Non spécifié';
+        document.getElementById('destination-display').textContent = urlParams.get('destination') || 'Non spécifié';
+
+        // Récupérer les résultats depuis sessionStorage
+        const storedResults = sessionStorage.getItem('searchResults');
+
+        if (storedResults) {
+            try {
+                const results = JSON.parse(storedResults);
+                if (results.routes && results.routes.length > 0) {
+                    currentRoutes = results.routes;
+                    displayRoutes(currentRoutes);
+                    displayRoutesOnMap(currentRoutes);
+                    selectRoute(0);
+                    return;
+                }
+            } catch (e) {
+                console.error('Error parsing stored results:', e);
             }
-
-            searchResultsData = JSON.parse(storedResults);
-            console.log('Données parsées:', searchResultsData);
-
-            // Vérifier la structure des données
-            if (!searchResultsData.success) {
-                console.error('Recherche échouée:', searchResultsData.error);
-                showError(searchResultsData.error?.message || 'Erreur de recherche');
-                redirectToSearch();
-                return;
-            }
-
-            if (!searchResultsData.routes || searchResultsData.routes.length === 0) {
-                console.error('Aucune route trouvée');
-                showNoResults();
-                return;
-            }
-
-            // ✅ Extraire les paramètres de recherche depuis les données
-            const firstRoute = searchResultsData.routes[0];
-            const searchParams = {
-                origin: firstRoute.origin_coords?.address || 'Point de départ',
-                destination: firstRoute.destination_coords?.address || 'Point d\'arrivée'
-            };
-
-            console.log('Paramètres extraits:', searchParams);
-
-            // Mettre à jour l'affichage
-            document.getElementById('origin-display').textContent = searchParams.origin;
-            document.getElementById('destination-display').textContent = searchParams.destination;
-
-            // Afficher les routes
-            currentRoutes = searchResultsData.routes;
-            hideLoading();
-            displayRoutes(currentRoutes);
-            
-            // Initialiser la carte
-            initializeMap();
-            displayRoutesOnMap(currentRoutes);
-            selectRoute(0); // Sélectionner la première route par défaut
-
-        } catch (error) {
-            console.error('Erreur lors de l\'initialisation:', error);
-            showError('Erreur lors du chargement des résultats');
-            redirectToSearch();
         }
-    }
 
-    function redirectToSearch() {
-        // Rediriger vers la page de recherche après 2 secondes
-        setTimeout(() => {
-            window.location.href = '{{ url_for("main.search") }}';
-        }, 2000);
+        const searchParams = {
+            origin: urlParams.get('origin'),
+            destination: urlParams.get('destination'),
+            departure_time: urlParams.get('departure_time'),
+            route_type: urlParams.get('route_type') || 'fastest',
+            avoid_tolls: urlParams.get('avoid_tolls') === 'true',
+            avoid_highways: urlParams.get('avoid_highways') === 'true',
+            avoid_ferries: urlParams.get('avoid_ferries') === 'true'
+        };
+
+        // Validate required parameters
+        if (!searchParams.origin || !searchParams.destination) {
+            showError('Paramètres de recherche manquants');
+            return;
+        }
+
+        // Update display
+        document.getElementById('origin-display').textContent = searchParams.origin;
+        document.getElementById('destination-display').textContent = searchParams.destination;
+
+        // Initialize map
+        initializeMap();
+
+        // Search for routes
+        searchRoutes(searchParams);
     }
 
     async function searchRoutes(searchParams) {
@@ -284,162 +270,123 @@
         container.classList.remove('hidden');
         container.innerHTML = '';
 
-        console.log('Affichage de', routes.length, 'routes');
-
         routes.forEach((route, index) => {
             const routeElement = createRouteCard(route, index);
             container.appendChild(routeElement);
         });
     }
-
-    function createRouteCard(route, index) {
-        const card = document.createElement('div');
-        card.className = `route-card bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg cursor-pointer transition-all duration-200 hover:shadow-xl ${index === selectedRouteIndex ? 'selected ring-2 ring-primary-500' : ''}`;
-        card.onclick = () => selectRoute(index);
-
-        // ✅ CORRECTION: Gérer les différents formats de données de route
-        let summary, score, recommendation;
+    
+    /*function displayRoutes(routes) {
+        const container = document.getElementById('routes-container');
+        const loadingElement = document.getElementById('routes-loading');
         
-        if (route.summary) {
-            summary = route.summary;
-        } else if (route.original_data && route.original_data.summary) {
-            summary = route.original_data.summary;
-        } else {
-            // Format par défaut si les données sont manquantes
-            summary = {
-                duration: route.duration || route.travel_time_seconds || 0,
-                length: route.length || route.distance_meters || 0
-            };
+        loadingElement.classList.add('hidden');
+        container.classList.remove('hidden');
+        container.innerHTML = '';
+
+        if (!routes || routes.length === 0) {
+            showNoResults();
+            return;
         }
 
-        score = route.optimization_score || 0;
-        recommendation = route.recommendation;
-
-        card.innerHTML = `
-            <div class="flex items-start justify-between mb-4">
-                <div class="flex-1">
-                    <div class="flex items-center mb-2">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getScoreClass(score)}">
-                            ${formatScore(score)}
-                        </span>
-                        ${recommendation ? `
-                            <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                ${recommendation.title || 'Recommandé'}
+        routes.forEach((route, index) => {
+            const summary = route.summary || {};
+            const duration = summary.duration || 0;
+            const length = summary.length || 0;
+            const delay = summary.trafficDelay || 0;
+            
+            const routeElement = document.createElement('div');
+            routeElement.className = `route-card bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg mb-4 cursor-pointer transition-all ${index === selectedRouteIndex ? 'border-2 border-primary-500' : 'hover:shadow-md'}`;
+            routeElement.innerHTML = `
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <div class="flex items-center mb-2">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getScoreClass(route.optimization_score)}">
+                                ${formatScore(route.optimization_score)}
                             </span>
-                        ` : ''}
+                        </div>
+                        <div class="text-xl font-bold text-gray-900 dark:text-white">
+                            ${formatDuration(duration)}
+                            ${delay > 0 ? `<span class="text-sm text-orange-500 ml-2">(+${formatDuration(delay)})</span>` : ''}
+                        </div>
+                        <div class="text-gray-600 dark:text-gray-300">
+                            ${formatDistance(length)}
+                        </div>
                     </div>
-                    <div class="text-lg font-semibold text-gray-900 dark:text-white">
-                        ${formatDuration(summary.duration)}
-                    </div>
-                    <div class="text-sm text-gray-600 dark:text-gray-300">
-                        ${formatDistance(summary.length)}
-                        ${summary.delay_info && summary.delay_info.delay_seconds > 0 ? 
-                            `<span class="text-orange-600 dark:text-orange-400 ml-2">
-                                +${formatDuration(summary.delay_info.delay_seconds)}
-                            </span>` : ''
-                        }
+                    <div class="flex flex-col items-end">
+                        <div class="text-lg font-semibold text-primary-600 dark:text-primary-400 mb-2">
+                            ${route.cost_estimate?.total_cost ? route.cost_estimate.total_cost + ' FCFA' : 'N/A'}
+                        </div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">
+                            ${route.environmental_impact?.estimated_co2_emission ? route.environmental_impact.estimated_co2_emission + ' kg CO₂' : ''}
+                        </div>
                     </div>
                 </div>
-                <div class="flex flex-col items-end">
-                    <button onclick="event.stopPropagation(); startNavigation(${index})" 
-                            class="btn-primary text-sm mb-2">
-                        <i class="fas fa-play mr-1"></i>
-                        Partir
-                    </button>
-                    <button onclick="event.stopPropagation(); showRouteDetails(${index})" 
-                            class="text-gray-400 hover:text-primary-600 transition-colors">
-                        <i class="fas fa-info-circle"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Traffic info -->
-            ${route.traffic_analysis ? `
+                
+                ${route.traffic_analysis ? `
                 <div class="flex items-center mb-3">
-                    <div class="w-3 h-3 rounded-full ${getTrafficClass(route.traffic_analysis.status || route.traffic_analysis.level)} mr-2"></div>
+                    <div class="w-3 h-3 rounded-full ${getTrafficClass(route.traffic_analysis.level)} mr-2"></div>
                     <span class="text-sm text-gray-600 dark:text-gray-300">
-                        ${getTrafficDescription(route.traffic_analysis)}
+                        ${route.traffic_analysis.description || 'Trafic normal'}
                     </span>
                 </div>
-            ` : ''}
+                ` : ''}
+                
+                <div class="flex justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <button onclick="event.stopPropagation(); showRouteDetails(${index})" 
+                            class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                        <i class="fas fa-info-circle mr-1"></i> Détails
+                    </button>
+                    <button onclick="event.stopPropagation(); startNavigation(${index})" 
+                            class="btn-primary text-sm px-4 py-1">
+                        <i class="fas fa-play mr-1"></i> Partir
+                    </button>
+                </div>
+            `;
+            
+            routeElement.addEventListener('click', () => selectRoute(index));
+            container.appendChild(routeElement);
+        });
+    }*/
 
-            <!-- Route info -->
-            <div class="grid grid-cols-2 gap-4 text-xs text-gray-500 dark:text-gray-400 pt-3 border-t border-gray-200 dark:border-gray-700">
+    function createRouteCard(route, index) {
+        const summary = route.summary || {};
+        const traffic = route.traffic_analysis || {};
+        
+        const card = document.createElement('div');
+        card.className = `bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg mb-4 cursor-pointer transition-all hover:shadow-xl ${index === selectedRouteIndex ? 'border-2 border-blue-500' : ''}`;
+        card.onclick = () => selectRoute(index);
+        
+        card.innerHTML = `
+            <div class="flex justify-between items-start mb-4">
                 <div>
-                    <i class="fas fa-route mr-1"></i>
-                    Route ${index + 1}
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Itinéraire ${index + 1}</h3>
+                    <div class="text-sm text-gray-600 dark:text-gray-300">${traffic.description || 'Conditions inconnues'}</div>
+                </div>
+                <div class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium">
+                    ${summary.formatted_duration || 'N/A'}
+                </div>
+            </div>
+            
+            <div class="flex items-center mb-3">
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${traffic.ratio ? Math.min(100, traffic.ratio * 100) : 100}%"></div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <div class="text-gray-500 dark:text-gray-400">Distance</div>
+                    <div class="font-medium">${summary.formatted_length || 'N/A'}</div>
                 </div>
                 <div>
-                    <i class="fas fa-star mr-1"></i>
-                    Score: ${formatScore(score)}
+                    <div class="text-gray-500 dark:text-gray-400">Trafic</div>
+                    <div class="font-medium">${traffic.level ? traffic.level.toUpperCase() : 'N/A'}</div>
                 </div>
             </div>
         `;
-
+        
         return card;
-    }
-
-    function formatDuration(seconds) {
-        if (!seconds || isNaN(seconds)) return 'N/A';
-        
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        
-        if (hours > 0) {
-            return `${hours}h ${minutes}min`;
-        } else {
-            return `${minutes}min`;
-        }
-    }
-
-    function formatDistance(meters) {
-        if (!meters || isNaN(meters)) return 'N/A';
-        
-        if (meters < 1000) {
-            return `${Math.round(meters)}m`;
-        } else {
-            return `${(meters / 1000).toFixed(1)}km`;
-        }
-    }
-
-    function formatScore(score) {
-        if (!score || isNaN(score)) return 'N/A';
-        return `${score.toFixed(1)}/10`;
-    }
-
-    function getScoreClass(score) {
-        if (!score || isNaN(score)) return 'bg-gray-100 text-gray-800';
-        
-        if (score >= 8.5) return 'bg-green-100 text-green-800';
-        if (score >= 7.0) return 'bg-blue-100 text-blue-800';
-        if (score >= 5.5) return 'bg-yellow-100 text-yellow-800';
-        if (score >= 3.0) return 'bg-orange-100 text-orange-800';
-        return 'bg-red-100 text-red-800';
-    }
-
-    function getTrafficClass(status) {
-        switch(status?.toLowerCase()) {
-            case 'free': return 'bg-green-500';
-            case 'light': return 'bg-yellow-500';
-            case 'moderate': return 'bg-orange-500';
-            case 'heavy': return 'bg-red-500';
-            default: return 'bg-gray-500';
-        }
-    }
-
-    function getTrafficDescription(trafficAnalysis) {
-        if (!trafficAnalysis) return 'Trafic inconnu';
-        
-        const status = trafficAnalysis.status || trafficAnalysis.level || 'unknown';
-        const descriptions = {
-            'free': 'Circulation fluide',
-            'light': 'Trafic léger',
-            'moderate': 'Trafic modéré',
-            'heavy': 'Trafic dense',
-            'unknown': 'Trafic inconnu'
-        };
-        
-        return descriptions[status.toLowerCase()] || 'Trafic inconnu';
     }
 
     function selectRoute(index) {
@@ -448,29 +395,19 @@
         // Update UI
         document.querySelectorAll('.route-card').forEach((card, i) => {
             card.classList.toggle('selected', i === index);
-            if (i === index) {
-                card.classList.add('ring-2', 'ring-primary-500');
-            } else {
-                card.classList.remove('ring-2', 'ring-primary-500');
-            }
         });
 
-        // Update map if available
+        // Update map
         if (map && currentRoutes[index]) {
             highlightRouteOnMap(currentRoutes[index], index);
         }
 
-        console.log('Route sélectionnée:', index, currentRoutes[index]);
+        trackEvent('route_selected', { index, route_id: currentRoutes[index]?.id });
     }
 
     function startNavigation(routeIndex) {
         const route = currentRoutes[routeIndex];
         if (!route) return;
-
-        // Sauvegarder la route sélectionnée
-        sessionStorage.setItem('selectedRoute', JSON.stringify(route));
-        
-        showAlert('🚀 Navigation démarrée !', 'success');
 
         // Save route to history and start navigation
         const params = new URLSearchParams({
@@ -495,7 +432,6 @@
         document.getElementById('route-details-modal').classList.add('hidden');
     }
 
-    /*
     function generateRouteDetailsHTML(route) {
         const summary = route.summary;
         
@@ -587,62 +523,10 @@
             </div>
         `;
     }
-    */
-
-    function generateRouteDetailsHTML(route) {
-        const summary = route.summary || route.original_data?.summary || {};
-        
-        return `
-            <div class="space-y-6">
-                <!-- Overview -->
-                <div>
-                    <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Aperçu</h4>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                            <div class="text-sm text-gray-600 dark:text-gray-300">Durée</div>
-                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
-                                ${formatDuration(summary.duration)}
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                            <div class="text-sm text-gray-600 dark:text-gray-300">Distance</div>
-                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
-                                ${formatDistance(summary.length)}
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                            <div class="text-sm text-gray-600 dark:text-gray-300">Score</div>
-                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
-                                ${formatScore(route.optimization_score)}
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                            <div class="text-sm text-gray-600 dark:text-gray-300">Statut trafic</div>
-                            <div class="text-lg font-semibold text-gray-900 dark:text-white">
-                                ${getTrafficDescription(route.traffic_analysis)}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Actions -->
-                <div class="flex space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button onclick="startNavigation(${selectedRouteIndex})" class="btn-primary flex-1">
-                        <i class="fas fa-play mr-2"></i>
-                        Démarrer la navigation
-                    </button>
-                    <button onclick="saveRoute(${selectedRouteIndex})" class="btn-secondary">
-                        <i class="fas fa-star mr-2"></i>
-                        Sauvegarder
-                    </button>
-                </div>
-            </div>
-        `;
-    }
 
     function modifySearch() {
-        // Retourner à la page de recherche
-        window.location.href = '{{ url_for("main.search") }}';
+        const params = new URLSearchParams(window.location.search);
+        window.location.href = `{{ url_for('main.search') }}?${params.toString()}`;
     }
 
     function refreshResults() {
@@ -652,11 +536,9 @@
         refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Actualisation...';
         refreshBtn.disabled = true;
 
-        // Rafraîchir les données
+        // Simulate refresh delay
         setTimeout(() => {
-            refreshBtn.innerHTML = originalContent;
-            refreshBtn.disabled = false;
-            showAlert('Résultats actualisés', 'success');
+            window.location.reload();
         }, 1000);
     }
 
@@ -683,56 +565,176 @@
     }
 
     async function saveRoute(routeIndex) {
-        // Vérifier si l'utilisateur est connecté
-        const userElement = document.querySelector('[data-user-authenticated]');
-        const isAuthenticated = userElement?.dataset.userAuthenticated === 'true';
-        
-        if (!isAuthenticated) {
+        if (!SmartRoute.user) {
             showAlert('Veuillez vous connecter pour sauvegarder des itinéraires', 'warning');
             return;
         }
 
         const route = currentRoutes[routeIndex];
         const routeName = prompt('Nom de l\'itinéraire :', 
-            `Route ${routeIndex + 1} - ${formatDuration(route.summary?.duration || 0)}`);
+            `${route.summary.origin.address.split(',')[0]} → ${route.summary.destination.address.split(',')[0]}`);
         
         if (!routeName) return;
 
         try {
-            const originCoords = route.origin_coords || {};
-            const destCoords = route.destination_coords || {};
-            
-            const response = await fetch('/api/saved-routes', {
+            const response = await apiRequest('/api/saved-routes', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({
                     name: routeName,
-                    origin_address: originCoords.address || 'Point de départ',
-                    origin_lat: originCoords.lat || 0,
-                    origin_lng: originCoords.lng || 0,
-                    destination_address: destCoords.address || 'Point d\'arrivée',
-                    destination_lat: destCoords.lat || 0,
-                    destination_lng: destCoords.lng || 0
+                    origin_address: route.summary.origin.address,
+                    origin_lat: route.summary.origin.lat,
+                    origin_lng: route.summary.origin.lng,
+                    destination_address: route.summary.destination.address,
+                    destination_lat: route.summary.destination.lat,
+                    destination_lng: route.summary.destination.lng
                 })
             });
 
-            const data = await response.json();
-            if (data.success) {
+            if (response.success) {
                 showAlert('Itinéraire sauvegardé avec succès', 'success');
-            } else {
-                showAlert('Erreur lors de la sauvegarde', 'error');
             }
         } catch (error) {
-            console.error('Save error:', error);
             showAlert('Erreur lors de la sauvegarde', 'error');
         }
     }
 
     // Map functions (to be implemented in maps.js)
     function initializeMap() {
+        if (map) return;
+    
+        const mapContainer = document.getElementById('map-container');
+        mapContainer.innerHTML = ''; // Clear loading message
+        
+        // Centrer sur le premier point de l'itinéraire ou sur le Cameroun par défaut
+        const center = currentRoutes[0]?.summary?.origin || { lat: 5.5406812, lng: 12.3186341 };
+        
+        map = L.map('map-container').setView([center.lat, center.lng], 8);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+    }
+
+    function displayRoutesOnMap(routes) {
+        if (!map) initializeMap();
+        
+        // Clear previous routes
+        routeLayers.forEach(layer => map.removeLayer(layer));
+        routeLayers = [];
+        
+        if (!routes || routes.length === 0) return;
+        
+        // Add each route to the map
+        routes.forEach((route, index) => {
+            const sections = route.sections || [];
+            const color = index === 0 ? '#3388ff' : ['#ff0000', '#00ff00', '#0000ff'][index % 3];
+            
+            sections.forEach(section => {
+                const polyline = L.polyline(
+                    decodePolyline(section.polyline), 
+                    { color, weight: index === 0 ? 5 : 3 }
+                ).addTo(map);
+                
+                routeLayers.push(polyline);
+            });
+        });
+        
+        // Fit map to show all routes
+        const bounds = L.latLngBounds(
+            routes.flatMap(route => 
+                (route.sections || []).flatMap(section => 
+                    decodePolyline(section.polyline)
+                )
+            )
+        );
+        
+        if (!bounds.isValid()) {
+            map.setView([routes[0].summary.origin.lat, routes[0].summary.origin.lng], 10);
+        } else {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+
+    function decodePolyline(encoded) {
+        // Simple polyline decoder (vous pouvez utiliser une librairie comme polyline.js pour une implémentation complète)
+        if (!encoded) return [];
+        const points = [];
+        let index = 0, lat = 0, lng = 0;
+        
+        while (index < encoded.length) {
+            let b, shift = 0, result = 0;
+            do {
+                b = encoded.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+            lat += dlat;
+
+            shift = 0;
+            result = 0;
+            do {
+                b = encoded.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+            lng += dlng;
+
+            points.push([lat * 1e-5, lng * 1e-5]);
+        }
+        
+        return points;
+    }
+
+    function highlightRouteOnMap(route, index) {
         // Implementation in maps.js
+    }
+
+    function toggleTrafficLayer() {
+        // Implementation in maps.js
+    }
+
+    function centerMap() {
+        // Implementation in maps.js
+    }
+
+    function toggleFullscreen() {
+        // Implementation in maps.js
+    }
+
+
+    // Helper functions
+    function formatDuration(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return `${hours > 0 ? hours + 'h ' : ''}${minutes}min`;
+    }
+
+    function formatDistance(meters) {
+        if (meters >= 1000) {
+            return (meters / 1000).toFixed(1) + ' km';
+        }
+        return meters + ' m';
+    }
+
+    function formatScore(score) {
+        return Math.round(score * 100) + '%';
+    }
+
+    function getScoreClass(score) {
+        if (score >= 0.8) return 'bg-green-100 text-green-800';
+        if (score >= 0.5) return 'bg-yellow-100 text-yellow-800';
+        return 'bg-red-100 text-red-800';
+    }
+
+    function getTrafficClass(level) {
+        const levels = {
+            'low': 'bg-green-500',
+            'medium': 'bg-yellow-500',
+            'high': 'bg-red-500'
+        };
+        return levels[level] || 'bg-gray-500';
     }
 </script>
 {% endblock %}

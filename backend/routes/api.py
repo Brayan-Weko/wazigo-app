@@ -24,7 +24,6 @@ def search_routes():
                 'error': {'message': 'Données manquantes', 'code': 'VALIDATION_ERROR'}
             }), 400
         
-        # ✅ CORRECTION: Log des données reçues pour debug
         current_app.logger.info(f"Données reçues: {data}")
 
         # Validation et nettoyage des données de localisation
@@ -133,6 +132,8 @@ def search_routes():
             'success': True,
             'routes': routes_result['routes'],
             'search_metadata': {
+                'origin': origin_info,
+                'destination': destination_info,
                 'query_time': routes_result.get('query_time', 0),
                 'total_routes': len(routes_result['routes']),
                 'subscription_type': subscription_check.get('subscription_type', 'guest'),

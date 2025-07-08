@@ -1,5 +1,5 @@
 {
-  "name": "smart-route-app",
+  "name": "wazigo",
   "version": "1.0.0",
   "description": "Application intelligente d'optimisation d'itinéraires utilisant l'IA pour analyser le trafic en temps réel",
   "main": "index.js",

@@ -172,6 +172,15 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+
+<!-- Polyline decoding library -->
+<script src="https://unpkg.com/@mapbox/polyline@1.1.1/src/polyline.js"></script>
+
 <script src="{{ url_for('static', filename='js/maps.js') }}"></script>
 <script>
     // Initialize results page
@@ -182,6 +191,102 @@
     let currentRoutes = [];
     let selectedRouteIndex = 0;
     let map = null;
+    window.routeLayers = [];
+
+    function displayRoutesOnMap(routes) {
+        if (!map) initializeMap();
+        
+        // Clear previous routes
+        if (window.routeLayers) {
+            window.routeLayers.forEach(layer => map.removeLayer(layer));
+        }
+        window.routeLayers = [];
+        
+        if (!routes || routes.length === 0) return;
+        
+        // Add each route to the map
+        routes.forEach((route, index) => {
+            const sections = route.sections || [];
+            const color = index === 0 ? '#3388ff' : ['#ff0000', '#00ff00', '#0000ff'][index % 3];
+            
+            sections.forEach(section => {
+                if (section.polyline) {
+                    try {
+                        const polyline = L.polyline(
+                            decodePolyline(section.polyline), 
+                            { color, weight: index === 0 ? 5 : 3 }
+                        ).addTo(map);
+                        
+                        // Add popup with route info
+                        polyline.bindPopup(`
+                            <div class="text-sm">
+                                <strong>Option ${index + 1}</strong><br>
+                                Durée: ${formatDuration(route.summary.duration)}<br>
+                                Distance: ${formatDistance(route.summary.length)}
+                            </div>
+                        `);
+                        
+                        window.routeLayers.push(polyline);
+                    } catch (e) {
+                        console.error('Error drawing polyline:', e);
+                    }
+                }
+            });
+        });
+        
+        // Fit map to show all routes
+        const bounds = L.latLngBounds(
+            routes.flatMap(route => 
+                (route.sections || []).flatMap(section => 
+                    section.polyline ? decodePolyline(section.polyline) : []
+                )
+            )
+        );
+        
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+
+    function displayRouteOnMap(route) {
+        if (!map) initializeMap();
+        
+        // Clear previous routes
+        if (window.routeLayers) {
+            window.routeLayers.forEach(layer => map.removeLayer(layer));
+        }
+        window.routeLayers = [];
+        
+        if (!route || !route.sections) return;
+        
+        // Add the route to the map
+        route.sections.forEach(section => {
+            const polyline = L.polyline(
+                decodePolyline(section.polyline), 
+                { color: '#3388ff', weight: 5 }
+            ).addTo(map);
+            window.routeLayers.push(polyline);
+        });
+        
+        // Fit map to show the route
+        const bounds = L.latLngBounds(
+            route.sections.flatMap(section => 
+                decodePolyline(section.polyline)
+            )
+        );
+        
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        } else {
+            // Fallback to origin and destination if bounds are invalid
+            if (route.summary && route.summary.origin && route.summary.destination) {
+                map.setView([
+                    (route.summary.origin.lat + route.summary.destination.lat) / 2,
+                    (route.summary.origin.lng + route.summary.destination.lng) / 2
+                ], 12);
+            }
+        }
+    }
 
     function initializeResultsPage() {
         // Get search parameters from URL
@@ -200,12 +305,18 @@
                 if (results.routes && results.routes.length > 0) {
                     currentRoutes = results.routes;
                     displayRoutes(currentRoutes);
-                    displayRoutesOnMap(currentRoutes);
-                    selectRoute(0);
+                    if (results.routes[0].summary) {
+                        initializeMap();
+                        displayRouteOnMap(results.routes[0]);
+                    }
+                    //selectRoute(0);
                     return;
                 }
             } catch (e) {
                 console.error('Error parsing stored results:', e);
+                document.getElementById('routes-loading').classList.add('hidden');
+                document.getElementById('error-state').classList.remove('hidden');
+                document.getElementById('error-message').textContent = e.message;
             }
         }
 
@@ -228,12 +339,6 @@
         // Update display
         document.getElementById('origin-display').textContent = searchParams.origin;
         document.getElementById('destination-display').textContent = searchParams.destination;
-
-        // Initialize map
-        initializeMap();
-
-        // Search for routes
-        searchRoutes(searchParams);
     }
 
     async function searchRoutes(searchParams) {
@@ -242,16 +347,32 @@
             
             const response = await apiRequest('/api/search-routes', {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(searchParams)
             });
+
+            if (!response) {
+                throw new Error('Aucune réponse du serveur');
+            }
+
+            if (response.error) {
+                throw new Error(response.error.message || 'Erreur inconnue');
+            }
 
             hideLoading();
 
             if (response.success && response.routes && response.routes.length > 0) {
                 currentRoutes = response.routes;
                 displayRoutes(currentRoutes);
-                displayRoutesOnMap(currentRoutes);
-                selectRoute(0); // Select first route by default
+                
+                // Initialize map after a small delay to ensure DOM is ready
+                setTimeout(() => {
+                    initializeMap();
+                    displayRoutesOnMap(currentRoutes);
+                    selectRoute(0); // Select first route by default
+                }, 100);
             } else {
                 showNoResults();
             }
@@ -259,19 +380,86 @@
         } catch (error) {
             hideLoading();
             showError(error.message || 'Erreur lors du calcul des itinéraires');
+            console.error('Search error:', error);
         }
     }
 
     function displayRoutes(routes) {
         const container = document.getElementById('routes-container');
-        const loadingElement = document.getElementById('routes-loading');
-        
-        loadingElement.classList.add('hidden');
-        container.classList.remove('hidden');
         container.innerHTML = '';
+        
+        if (!routes || routes.length === 0) {
+            showNoResults();
+            return;
+        }
+
+        // Hide loading and show container
+        document.getElementById('routes-loading').classList.add('hidden');
+        container.classList.remove('hidden');
 
         routes.forEach((route, index) => {
-            const routeElement = createRouteCard(route, index);
+            const summary = route.summary || {};
+            const traffic = route.traffic_analysis || {};
+            
+            const routeElement = document.createElement('div');
+            routeElement.className = `route-card bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg mb-4 cursor-pointer transition-all ${index === selectedRouteIndex ? 'border-2 border-primary-500' : 'hover:shadow-md'}`;
+            routeElement.onclick = () => selectRoute(index);
+            
+            routeElement.innerHTML = `
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Option ${index + 1}</h3>
+                        <div class="flex items-center mt-2">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getScoreClass(route.optimization_score/10)}">
+                                Score: ${route.optimization_score?.toFixed(1) || 'N/A'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-gray-900 dark:text-white">
+                            ${formatDuration(summary.duration)}
+                        </div>
+                        <div class="text-sm text-gray-600 dark:text-gray-300">
+                            ${formatDistance(summary.length)}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="flex items-center mb-2">
+                        <div class="w-3 h-3 rounded-full ${getTrafficColor(traffic.level)} mr-2"></div>
+                        <span class="text-sm">${traffic.description || 'Conditions inconnues'}</span>
+                    </div>
+                    ${summary.delay_info?.delay_seconds > 0 ? `
+                        <div class="text-sm text-orange-600 dark:text-orange-400">
+                            Retard estimé: ${formatDuration(summary.delay_info.delay_seconds)}
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div class="flex justify-between text-sm text-gray-600 dark:text-gray-300">
+                    <div>
+                        <i class="fas fa-gas-pump mr-1"></i>
+                        ${route.cost_estimate?.total_cost ? `${route.cost_estimate.total_cost.toFixed(2)}€` : 'N/A'}
+                    </div>
+                    <div>
+                        <i class="fas fa-leaf mr-1"></i>
+                        ${route.environmental_impact?.estimated_co2_emission ? `${route.environmental_impact.estimated_co2_emission.toFixed(1)}kg CO₂` : 'N/A'}
+                    </div>
+                </div>
+                
+                <div class="flex justify-between pt-3 border-t border-gray-200 dark:border-gray-700 mt-3">
+                    <button onclick="event.stopPropagation(); showRouteDetails(${index})" 
+                            class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                        <i class="fas fa-info-circle mr-1"></i> Détails
+                    </button>
+                    <button onclick="event.stopPropagation(); startNavigation(${index})" 
+                            class="btn-primary text-sm px-4 py-1">
+                        <i class="fas fa-play mr-1"></i> Partir
+                    </button>
+                </div>
+            `;
+            
             container.appendChild(routeElement);
         });
     }
@@ -601,63 +789,44 @@
     // Map functions (to be implemented in maps.js)
     function initializeMap() {
         if (map) return;
-    
+
         const mapContainer = document.getElementById('map-container');
         mapContainer.innerHTML = ''; // Clear loading message
         
-        // Centrer sur le premier point de l'itinéraire ou sur le Cameroun par défaut
-        const center = currentRoutes[0]?.summary?.origin || { lat: 5.5406812, lng: 12.3186341 };
+        // Default center (Cameroon)
+        let center = [5.5406812, 12.3186341];
+        let zoom = 7;
         
-        map = L.map('map-container').setView([center.lat, center.lng], 8);
+        // Use first route's origin if available
+        if (currentRoutes.length > 0 && currentRoutes[0].summary) {
+            center = [
+                currentRoutes[0].summary.origin.lat,
+                currentRoutes[0].summary.origin.lng
+            ];
+            zoom = 10;
+        }
+        
+        map = L.map('map-container').setView(center, zoom);
         
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
-    }
-
-    function displayRoutesOnMap(routes) {
-        if (!map) initializeMap();
         
-        // Clear previous routes
-        routeLayers.forEach(layer => map.removeLayer(layer));
-        routeLayers = [];
-        
-        if (!routes || routes.length === 0) return;
-        
-        // Add each route to the map
-        routes.forEach((route, index) => {
-            const sections = route.sections || [];
-            const color = index === 0 ? '#3388ff' : ['#ff0000', '#00ff00', '#0000ff'][index % 3];
-            
-            sections.forEach(section => {
-                const polyline = L.polyline(
-                    decodePolyline(section.polyline), 
-                    { color, weight: index === 0 ? 5 : 3 }
-                ).addTo(map);
-                
-                routeLayers.push(polyline);
-            });
-        });
-        
-        // Fit map to show all routes
-        const bounds = L.latLngBounds(
-            routes.flatMap(route => 
-                (route.sections || []).flatMap(section => 
-                    decodePolyline(section.polyline)
-                )
-            )
-        );
-        
-        if (!bounds.isValid()) {
-            map.setView([routes[0].summary.origin.lat, routes[0].summary.origin.lng], 10);
-        } else {
-            map.fitBounds(bounds, { padding: [50, 50] });
+        // Add routes to map if we have them
+        if (currentRoutes.length > 0) {
+            displayRoutesOnMap(currentRoutes);
         }
     }
 
     function decodePolyline(encoded) {
-        // Simple polyline decoder (vous pouvez utiliser une librairie comme polyline.js pour une implémentation complète)
         if (!encoded) return [];
+        
+        // Use the polyline library if available, otherwise use simple decoder
+        if (typeof polyline !== 'undefined') {
+            return polyline.decode(encoded);
+        }
+        
+        // Fallback simple decoder
         const points = [];
         let index = 0, lat = 0, lng = 0;
         
@@ -706,16 +875,17 @@
 
     // Helper functions
     function formatDuration(seconds) {
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        return `${hours > 0 ? hours + 'h ' : ''}${minutes}min`;
-    }
+    if (isNaN(seconds) || seconds === null || seconds === undefined) return 'N/A';
+    seconds = parseInt(seconds);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return hours > 0 ? `${hours}h ${minutes}min` : `${minutes}min`;
+}
 
     function formatDistance(meters) {
-        if (meters >= 1000) {
-            return (meters / 1000).toFixed(1) + ' km';
-        }
-        return meters + ' m';
+        if (isNaN(meters) || meters === null || meters === undefined) return 'N/A';
+        meters = parseInt(meters);
+        return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${meters} m`;
     }
 
     function formatScore(score) {
@@ -735,6 +905,17 @@
             'high': 'bg-red-500'
         };
         return levels[level] || 'bg-gray-500';
+    }
+
+    function getTrafficColor(level) {
+        const colors = {
+            'free': 'bg-green-500',
+            'light': 'bg-yellow-500',
+            'moderate': 'bg-orange-500',
+            'heavy': 'bg-red-500',
+            'severe': 'bg-red-700'
+        };
+        return colors[level] || 'bg-gray-500';
     }
 </script>
 {% endblock %}
