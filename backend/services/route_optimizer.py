@@ -432,7 +432,7 @@ class RouteOptimizer:
             'fuel_cost': round(fuel_cost, 2),
             'toll_cost': round(toll_cost, 2),
             'total_cost': round(total_cost, 2),
-            'currency': 'EUR'
+            'currency': 'XAF'
         }
     
     def _get_recommendation(self, route: Dict, rank: int, total_routes: int) -> Dict:

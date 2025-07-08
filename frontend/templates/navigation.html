@@ -292,7 +292,15 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{{ url_for('static', filename='js/navigation.js') }}"></script>
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+
+<!-- Polyline decoding library -->
+<script src="https://unpkg.com/@mapbox/polyline@1.1.1/src/polyline.js"></script>
+
 <script>
     let navigationState = {
         isActive: false,
@@ -308,7 +316,12 @@
             keepScreenOn: true,
             autoReroute: true,
             avoidTraffic: false
-        }
+        },
+        map: null,
+        routeLayer: null,
+        positionMarker: null,
+        originMarker: null,
+        destinationMarker: null
     };
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -317,28 +330,22 @@
 
     async function initializeNavigation() {
         try {
-            // Get route data from URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const routeId = urlParams.get('route_id');
+            // Get route data from session storage
+            const routeData = sessionStorage.getItem('currentRoute');
             
-            if (!routeId) {
+            if (!routeData) {
                 showAlert('Aucun itinéraire sélectionné', 'error');
                 exitNavigation();
                 return;
             }
 
-            // Load route data
-            const routeData = await loadRouteData(routeId);
-            if (!routeData) {
-                showAlert('Impossible de charger l\'itinéraire', 'error');
-                exitNavigation();
-                return;
-            }
-
-            navigationState.currentRoute = routeData;
+            navigationState.currentRoute = JSON.parse(routeData);
             
             // Initialize map
-            await initializeNavigationMap();
+            initializeNavigationMap();
+            
+            // Extract instructions from route sections
+            prepareNavigationInstructions();
             
             // Start GPS tracking
             startGPSTracking();
@@ -365,17 +372,21 @@
         }
     }
 
-    async function loadRouteData(routeId) {
-        try {
-            const response = await apiRequest(`/api/route/${routeId}/start`, {
-                method: 'POST'
-            });
-            
-            return response.success ? response.route : null;
-        } catch (error) {
-            console.error('Error loading route data:', error);
-            return null;
-        }
+    function prepareNavigationInstructions() {
+        if (!navigationState.currentRoute || !navigationState.currentRoute.sections) return;
+        
+        // Extract instructions from all sections
+        navigationState.instructions = [];
+        navigationState.currentRoute.sections.forEach(section => {
+            if (section.actions) {
+                navigationState.instructions.push(...section.actions.map(action => ({
+                    type: action.action,
+                    text: action.instruction,
+                    distance: action.length,
+                    location: action.location
+                })));
+            }
+        });
     }
 
     function startGPSTracking() {
@@ -451,10 +462,7 @@
         document.getElementById('traffic-status').textContent = route.traffic_analysis?.description || 'Normal';
 
         // Update instructions
-        if (route.selected_route_data?.instructions) {
-            navigationState.instructions = route.selected_route_data.instructions;
-            updateInstructionDisplay();
-        }
+        updateInstructionDisplay();
     }
 
     function updateInstructionDisplay() {
@@ -467,6 +475,10 @@
             document.getElementById('instruction-text').textContent = instruction.text || 'Continuez tout droit';
             document.getElementById('instruction-distance').textContent = formatDistance(instruction.distance || 0);
             document.getElementById('instruction-icon').className = getInstructionIcon(instruction.type);
+            document.getElementById('instruction-countdown').textContent = Math.round(instruction.distance || 0);
+            
+            // Speak instruction
+            speakInstruction(instruction.text);
             
             // Update upcoming instructions
             updateUpcomingInstructions();
@@ -495,13 +507,16 @@
 
     function getInstructionIcon(type) {
         const icons = {
-            'straight': 'fas fa-arrow-up',
+            'depart': 'fas fa-play',
+            'turn': 'fas fa-directions',
+            'arrive': 'fas fa-flag-checkered',
+            'continue': 'fas fa-arrow-right',
+            'keep': 'fas fa-arrow-right',
+            'roundaboutExit': 'fas fa-exchange-alt',
+            'merge': 'fas fa-code-branch',
             'left': 'fas fa-arrow-left',
             'right': 'fas fa-arrow-right',
-            'uturn': 'fas fa-undo',
-            'exit': 'fas fa-sign-out-alt',
-            'merge': 'fas fa-code-branch',
-            'roundabout': 'fas fa-circle-notch'
+            'straight': 'fas fa-arrow-up'
         };
         return icons[type] || 'fas fa-arrow-up';
     }
@@ -514,17 +529,31 @@
             const eta = new Date(Date.now() + remainingTime * 1000);
             document.getElementById('eta-time').textContent = 
                 eta.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            
+            // Update remaining distance
+            const remainingDistance = calculateRemainingDistance();
+            document.getElementById('remaining-distance').textContent = 
+                formatDistance(remainingDistance);
         }
     }
 
     function calculateRemainingTime() {
-        // Simplified calculation - in real implementation, this would be more complex
         const route = navigationState.currentRoute;
-        if (!route) return null;
+        if (!route || !navigationState.instructions.length) return null;
         
         const totalTime = route.summary.duration;
         const progress = navigationState.currentInstructionIndex / navigationState.instructions.length;
         return Math.round(totalTime * (1 - progress));
+    }
+
+    function calculateRemainingDistance() {
+        if (!navigationState.instructions.length) return 0;
+        
+        let distance = 0;
+        for (let i = navigationState.currentInstructionIndex; i < navigationState.instructions.length; i++) {
+            distance += navigationState.instructions[i].distance || 0;
+        }
+        return distance;
     }
 
     function toggleBottomPanel() {
@@ -565,13 +594,6 @@
             requestWakeLock();
         } else {
             releaseWakeLock();
-        }
-
-        // Apply map settings
-        if (navigationState.settings.showTraffic) {
-            // Enable traffic layer
-        } else {
-            // Disable traffic layer
         }
     }
 
@@ -630,23 +652,8 @@
         // Release wake lock
         releaseWakeLock();
 
-        // Mark route as completed
-        if (navigationState.currentRoute) {
-            completeNavigation();
-        }
-
         // Return to results or search
         window.history.back();
-    }
-
-    async function completeNavigation() {
-        try {
-            await apiRequest(`/api/route/${navigationState.currentRoute.id}/complete`, {
-                method: 'POST'
-            });
-        } catch (error) {
-            console.error('Error completing navigation:', error);
-        }
     }
 
     // Wake Lock API
@@ -693,18 +700,145 @@
         speechSynthesis.speak(utterance);
     }
 
-    // Map functions (to be implemented in maps.js)
+    // Map functions
     function initializeNavigationMap() {
-        // Implementation in maps.js
-        return Promise.resolve();
+        const route = navigationState.currentRoute;
+        if (!route) return;
+
+        // Initialize map centered on origin
+        const center = [
+            route.summary.origin.lat,
+            route.summary.origin.lng
+        ];
+        
+        navigationState.map = L.map('navigation-map').setView(center, 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(navigationState.map);
+
+        // Add origin and destination markers
+        navigationState.originMarker = L.marker(
+            [route.summary.origin.lat, route.summary.origin.lng],
+            {
+                icon: L.divIcon({
+                    className: 'origin-marker',
+                    html: '<i class="fas fa-map-marker-alt text-red-500 text-2xl"></i>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 30]
+                })
+            }
+        ).addTo(navigationState.map).bindPopup('Point de départ');
+
+        navigationState.destinationMarker = L.marker(
+            [route.summary.destination.lat, route.summary.destination.lng],
+            {
+                icon: L.divIcon({
+                    className: 'destination-marker',
+                    html: '<i class="fas fa-flag-checkered text-green-500 text-2xl"></i>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 30]
+                })
+            }
+        ).addTo(navigationState.map).bindPopup('Point d\'arrivée');
+
+        // Draw the route
+        drawRoute();
+    }
+
+    function drawRoute() {
+        const route = navigationState.currentRoute;
+        if (!route || !route.polyline) return;
+
+        // Clear previous route if exists
+        if (navigationState.routeLayer) {
+            navigationState.map.removeLayer(navigationState.routeLayer);
+        }
+
+        try {
+            const decoded = decodePolyline(route.polyline);
+            navigationState.routeLayer = L.polyline(decoded, {
+                color: '#3388ff',
+                weight: 5
+            }).addTo(navigationState.map);
+
+            // Fit map to show the route
+            navigationState.map.fitBounds(navigationState.routeLayer.getBounds(), {
+                padding: [50, 50]
+            });
+        } catch (e) {
+            console.error('Error drawing route:', e);
+        }
     }
 
     function updateMapPosition() {
-        // Implementation in maps.js
+        if (!navigationState.currentPosition || !navigationState.map) return;
+
+        const { lat, lng, heading } = navigationState.currentPosition;
+        
+        // Create or update position marker
+        if (!navigationState.positionMarker) {
+            navigationState.positionMarker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: 'position-marker',
+                    html: `<i class="fas fa-location-arrow text-blue-500 text-2xl" style="transform: rotate(${heading}deg)"></i>`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 30]
+                }),
+                zIndexOffset: 1000
+            }).addTo(navigationState.map);
+        } else {
+            navigationState.positionMarker.setLatLng([lat, lng]);
+            
+            // Update rotation if heading is available
+            const icon = navigationState.positionMarker.getElement();
+            if (icon && heading) {
+                icon.querySelector('i').style.transform = `rotate(${heading}deg)`;
+            }
+        }
+
+        // Keep position in view
+        navigationState.map.setView([lat, lng], navigationState.map.getZoom());
     }
 
     function checkCurrentInstruction() {
-        // Implementation in maps.js
+        if (!navigationState.currentPosition || !navigationState.instructions.length) return;
+        
+        const currentInstruction = navigationState.instructions[navigationState.currentInstructionIndex];
+        if (!currentInstruction || !currentInstruction.location) return;
+        
+        // Calculate distance to next instruction
+        const distance = calculateDistance(
+            navigationState.currentPosition.lat,
+            navigationState.currentPosition.lng,
+            currentInstruction.location.lat,
+            currentInstruction.location.lng
+        );
+        
+        // If close enough to instruction, move to next one
+        if (distance < 50) { // 50 meters threshold
+            navigationState.currentInstructionIndex = Math.min(
+                navigationState.currentInstructionIndex + 1,
+                navigationState.instructions.length - 1
+            );
+            updateInstructionDisplay();
+        }
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        // Haversine formula to calculate distance between two points
+        const R = 6371e3; // Earth radius in meters
+        const φ1 = lat1 * Math.PI/180;
+        const φ2 = lat2 * Math.PI/180;
+        const Δφ = (lat2-lat1) * Math.PI/180;
+        const Δλ = (lon2-lon1) * Math.PI/180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c;
     }
 
     function toggleMapMode() {
@@ -714,7 +848,10 @@
 
     function centerOnLocation() {
         if (navigationState.currentPosition) {
-            // Center map on current position
+            navigationState.map.setView(
+                [navigationState.currentPosition.lat, navigationState.currentPosition.lng],
+                navigationState.map.getZoom()
+            );
             showAlert('Carte centrée', 'info');
         }
     }
@@ -727,6 +864,26 @@
                 document.exitFullscreen();
             }
         }
+    }
+
+    // Helper functions
+    function formatDuration(seconds) {
+        if (isNaN(seconds) || seconds === null || seconds === undefined) return 'N/A';
+        seconds = parseInt(seconds);
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return hours > 0 ? `${hours}h ${minutes}min` : `${minutes}min`;
+    }
+
+    function formatDistance(meters) {
+        if (isNaN(meters) || meters === null || meters === undefined) return 'N/A';
+        meters = parseInt(meters);
+        return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${meters} m`;
+    }
+
+    function showAlert(message, type) {
+        // Implementation depends on your alert system
+        console.log(`${type}: ${message}`);
     }
 
     // Handle page visibility changes
@@ -743,7 +900,9 @@
     window.addEventListener('orientationchange', function() {
         setTimeout(() => {
             // Adjust map size after orientation change
-            updateMapPosition();
+            if (navigationState.map) {
+                navigationState.map.invalidateSize();
+            }
         }, 500);
     });
 

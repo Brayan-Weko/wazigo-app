@@ -378,7 +378,7 @@
                 <div class="flex justify-between text-sm text-gray-600 dark:text-gray-300">
                     <div>
                         <i class="fas fa-gas-pump mr-1"></i>
-                        ${cost.total_cost ? `${cost.total_cost.toFixed(2)}€` : 'N/A'}
+                        ${cost.total_cost ? (cost.total_cost * 655).toFixed(0) + ' XAF' : 'N/A'}
                     </div>
                     <div>
                         <i class="fas fa-leaf mr-1"></i>
@@ -497,6 +497,31 @@
         const cost = route.cost_estimate || {};
         const env = route.environmental_impact || {};
         
+        // Extraire les instructions si disponibles
+        let instructionsHTML = '';
+        if (route.sections && route.sections.length > 0 && route.sections[0].actions) {
+            instructionsHTML = `
+                <div>
+                    <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Instructions</h4>
+                    <div class="space-y-2">
+                        ${route.sections[0].actions.map(action => `
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 pt-1">
+                                    <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3">
+                                        ${getActionIcon(action.action)}
+                                    </div>
+                                </div>
+                                <div class="text-sm text-gray-700 dark:text-gray-300">
+                                    ${action.instruction || 'Instruction non disponible'}
+                                    ${action.length ? `<span class="text-gray-500 text-xs ml-2">(${formatDistance(action.length)})</span>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
         return `
             <div class="space-y-6">
                 <!-- Overview -->
@@ -524,11 +549,13 @@
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                             <div class="text-sm text-gray-600 dark:text-gray-300">Coût estimé</div>
                             <div class="text-lg font-semibold text-gray-900 dark:text-white">
-                                ${cost.total_cost ? cost.total_cost.toFixed(2) + '€' : 'N/A'}
+                                ${cost.total_cost ? (cost.total_cost * 655).toFixed(0) + ' XAF' : 'N/A'}
                             </div>
                         </div>
                     </div>
                 </div>
+
+                ${instructionsHTML}
 
                 <!-- Traffic Analysis -->
                 <div>
@@ -536,7 +563,7 @@
                     <div class="flex items-center mb-2">
                         <div class="w-4 h-4 rounded-full ${getTrafficColor(traffic.level)} mr-3"></div>
                         <span class="font-medium text-gray-900 dark:text-white">
-                            ${traffic.description || 'Conditions inconnues'}
+                            ${getTrafficDescription(traffic.level) || 'Conditions inconnues'}
                         </span>
                     </div>
                     ${traffic.ratio ? `
@@ -582,6 +609,31 @@
         `;
     }
 
+    // Helper functions pour les instructions
+    function getActionIcon(actionType) {
+        const icons = {
+            'depart': 'fas fa-play',
+            'turn': 'fas fa-directions',
+            'arrive': 'fas fa-flag-checkered',
+            'continue': 'fas fa-arrow-right',
+            'keep': 'fas fa-arrow-right',
+            'roundaboutExit': 'fas fa-exchange-alt',
+            'merge': 'fas fa-code-branch'
+        };
+        return `<i class="${icons[actionType] || 'fas fa-arrow-right'} text-xs"></i>`;
+    }
+
+    function getTrafficDescription(level) {
+        const descriptions = {
+            'free': 'Fluide',
+            'light': 'Circulation légère',
+            'moderate': 'Circulation modérée',
+            'heavy': 'Circulation dense',
+            'severe': 'Embouteillages'
+        };
+        return descriptions[level] || 'Conditions inconnues';
+    }
+    
     function modifySearch() {
         const params = new URLSearchParams(window.location.search);
         window.location.href = `{{ url_for('main.search') }}?${params.toString()}`;
@@ -773,12 +825,22 @@
         let zoom = 7;
         
         // Use first route's origin if available
-        if (currentRoutes.length > 0 && currentRoutes[0].origin_coords) {
-            center = [
-                currentRoutes[0].origin_coords.lat,
-                currentRoutes[0].origin_coords.lng
-            ];
-            zoom = 10;
+        if (currentRoutes.length > 0) {
+            const route = currentRoutes[0];
+            
+            if (route.origin_coords) {
+                center = [
+                    route.origin_coords.lat,
+                    route.origin_coords.lng
+                ];
+                zoom = 10;
+            }
+            
+            // Check if country is Cameroon (CM) to adjust view
+            if (route.origin_coords?.country === 'cm' || route.destination_coords?.country === 'cm') {
+                center = [5.5406812, 12.3186341]; // Cameroon coordinates
+                zoom = 7;
+            }
         }
         
         map = L.map('map-container').setView(center, zoom);

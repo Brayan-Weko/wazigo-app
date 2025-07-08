@@ -72,6 +72,18 @@ class RouteService:
                 # Analyser le trafic
                 try:
                     traffic_analysis = self.traffic_analyzer.analyze_route_traffic(route_data)
+                    traffic_descriptions = {
+                        'free': 'Fluide',
+                        'light': 'Circulation légère',
+                        'moderate': 'Circulation modérée',
+                        'heavy': 'Circulation dense',
+                        'severe': 'Embouteillages',
+                        'unknown': 'Conditions inconnues'
+                    }
+                    traffic_analysis['global_analysis']['description'] = traffic_descriptions.get(
+                        traffic_analysis['global_analysis'].get('description', 'unknown').lower(),
+                        'Conditions inconnues'
+                    )
                 except Exception as e:
                     current_app.logger.warning(f"Traffic analysis failed: {str(e)}")
                     traffic_analysis = {'global_analysis': {}, 'critical_points': []}
